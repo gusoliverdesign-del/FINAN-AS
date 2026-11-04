@@ -221,6 +221,21 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .prio::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .prio.Alta{background:rgba(255,80,59,.12);color:var(--red-soft)}
 .prio.Média{background:rgba(255,181,71,.12);color:var(--warn)}
+.who-chip{display:inline-flex;align-items:center;gap:6px;font:500 11px/1.4 var(--f-body);color:var(--soft);background:rgba(255,255,255,.05);border-radius:99px;padding:3px 9px 3px 7px;white-space:nowrap}
+.who-chip .dot{width:7px;height:7px;box-shadow:0 0 0 1.5px var(--panel2)}
+.av.c{background:rgba(255,255,255,.06);color:var(--soft);font-size:10.5px}
+.tag.auto{background:rgba(142,203,255,.1);color:var(--blue)}
+.sal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sal-col{background:var(--panel2);border:1px solid var(--cardline);border-radius:12px;padding:18px;min-width:0}
+.sal-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.sal-head b{font:600 16px var(--display);letter-spacing:-.02em}
+.sal-big{font:600 clamp(24px,2.4vw,34px)/1 var(--display);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--accent)}
+.sal-big.neg{color:var(--red-soft)}
+.sal-col .track{height:6px;border-radius:3px;background:#222;overflow:hidden}
+.sal-col .fill{height:100%;background:var(--accent);border-radius:3px}
+.sal-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid #1f1f1f;font-size:13px;color:#a9a8a4}
+.sal-row .num{font:500 12.5px var(--mono);color:var(--soft)}
+@media (max-width:560px){ .sal-grid{grid-template-columns:1fr} }
 .parc-left{font:500 10.5px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:3px 10px;background:rgba(255,80,59,.12);color:var(--red-soft)}
 .parc-left.done{background:rgba(213,255,86,.08);color:var(--accent)}
 .prio.Baixa{background:rgba(255,255,255,.05);color:var(--label)}
@@ -356,7 +371,7 @@ body.locked{overflow:hidden}
       <a href="#painel">Painel</a>
       <a href="#lancamentos">Lançamentos</a>
       <a href="#orcamento">Orçamento</a>
-      <a href="#metas">Metas e dívidas</a>
+      <a href="#metas">Contas e metas</a>
       <a href="#ajustes">Ajustes</a>
     </nav>
     <div class="side-sep"></div>
@@ -388,7 +403,7 @@ body.locked{overflow:hidden}
     <a class="tb-btn" href="#painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Painel</span></a>
     <a class="tb-btn" href="#lancamentos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg><span>Extrato</span></a>
     <a class="tb-btn" href="#orcamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5a9 9 0 0 1 5.5 5.5H15z"/></svg><span>Orçamento</span></a>
-    <a class="tb-btn" href="#metas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg><span>Metas</span></a>
+    <a class="tb-btn" href="#metas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg><span>Contas</span></a>
     <a class="tb-btn" href="#ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg><span>Ajustes</span></a>
   </div>
   <button class="tb-fab glass" id="fab2" aria-label="Novo lançamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -589,17 +604,48 @@ function pickMonth(){
 }
 
 // ---------- Cálculos ----------
-function monthTx(mk=S.month){ return S.lanc.filter(l=>monthKey(l.data)===mk); }
+const CUR = () => monthKey(todayISO());
+const mdiff = (a,b) => { const [y1,m1]=a.split("-").map(Number),[y2,m2]=b.split("-").map(Number); return (y2-y1)*12+(m2-m1); };
+const quemChip = q => q==="casal" ? `<span class="who-chip"><span class="dot a"></span><span class="dot b" style="margin-left:-6px"></span>Os dois</span>` : `<span class="who-chip"><span class="dot ${q==="b"?"b":"a"}"></span>${esc(nome(q==="b"?"b":"a"))}</span>`;
+function divTipo(d){ return d.tipo || ((+d.totalParcelas>0)?"parcelada":"avulsa"); }
+function divInicio(d){ return d.inicio || addMonths(CUR(), -(+d.parcelasPagas||0)); }
+function parcState(d, mk=CUR()){
+  const t=+d.totalParcelas||0, ini=divInicio(d), nMes=mdiff(ini,mk)+1, k=mdiff(ini,CUR());
+  let pagas=Math.min(Math.max(k,0),t);
+  if(+d.vencimento && +todayISO().slice(8)>=+d.vencimento && k>=0 && k<t) pagas=Math.min(pagas+1,t);
+  return {t,ini,nMes,pagas,faltam:t-pagas,fim:addMonths(ini,Math.max(t-1,0))};
+}
+function divSaldo(d){ const tp=divTipo(d); if(tp==="parcelada") return parcState(d).faltam*(+d.parcela||0); if(tp==="fixa") return 0; return +d.saldo||0; }
+const fixaAtiva = (d,mk) => mk>=(d.inicio||"0000-00") && (!d.fim || mk<=d.fim);
+const salAtivo = mk => mk>=(S.config.salInicio||"0000-00");
+function autoTx(mk){
+  const out=[]; const c=S.config;
+  if(salAtivo(mk)) for(const k of ["a","b"]){ const K=k.toUpperCase(), v=+c["salario"+K]||0; if(v>0) out.push({id:`auto:sal:${k}`,auto:"salario",data:`${mk}-${pad(Math.min(28,Math.max(1,+c["diaSal"+K]||5)))}`,tipo:"Receita",categoria:"Salário",descricao:`Salário de ${nome(k)}`,pagamento:"Automático",valor:v,quem:k,divisao:"individual"}); }
+  for(const d of S.dividas){ const tp=divTipo(d), v=+d.parcela||0; if(!(v>0)) continue;
+    const data=`${mk}-${pad(Math.min(28,Math.max(1,+d.vencimento||1)))}`, q=d.quem||"casal", divisao=q==="casal"?"casal":"individual";
+    if(tp==="fixa" && fixaAtiva(d,mk)) out.push({id:`auto:div:${d.id}`,auto:"fixa",src:d.id,data,tipo:"Despesa",categoria:d.categoria||"Contas",descricao:d.nome,pagamento:"Automático",valor:v,quem:q,divisao,essencial:true});
+    if(tp==="parcelada"){ const ps=parcState(d,mk); if(ps.nMes>=1 && ps.nMes<=ps.t) out.push({id:`auto:div:${d.id}`,auto:"parcela",src:d.id,data,tipo:"Despesa",categoria:"Dívidas",descricao:`${d.nome} · parcela ${ps.nMes}/${ps.t}`,pagamento:"Automático",valor:v,quem:q,divisao,essencial:true}); }
+  }
+  return out;
+}
+function monthTx(mk=S.month){ return [...S.lanc.filter(l=>monthKey(l.data)===mk), ...autoTx(mk)]; }
 function summary(mk=S.month){
   const tx=monthTx(mk); let rec=0,desp=0,ess=0; const cat={}; const rA={a:0,b:0}; const pago={a:0,b:0}; const ind={a:0,b:0};
-  for(const l of tx){ const v=Number(l.valor)||0; const q=l.quem==="b"?"b":"a";
-    if(l.tipo==="Receita"){ rec+=v; rA[q]+=v; }
-    else { desp+=v; if(l.essencial) ess+=v; cat[l.categoria]=(cat[l.categoria]||0)+v; if(l.divisao==="individual") ind[q]+=v; else pago[q]+=v; }
+  const sal={a:0,b:0}, extra={a:0,b:0}, fix={a:0,b:0,casal:0}, parc={a:0,b:0,casal:0}, indMan={a:0,b:0};
+  for(const l of tx){ const v=Number(l.valor)||0; const q=l.quem==="b"?"b":l.quem==="casal"?"casal":"a";
+    if(l.tipo==="Receita"){ const p=q==="casal"?"a":q; rec+=v; rA[p]+=v; if(l.auto==="salario") sal[p]+=v; else extra[p]+=v; }
+    else { desp+=v; if(l.essencial) ess+=v; cat[l.categoria]=(cat[l.categoria]||0)+v;
+      if(l.auto){ (l.auto==="fixa"?fix:parc)[q]+=v; if(q!=="casal") ind[q]+=v; }
+      else if(l.divisao==="individual"){ ind[q]+=v; indMan[q]+=v; } else pago[q]+=v; }
   }
   const comp = pago.a+pago.b;
   let ra = .5; if(S.config.divisao==="proporcional" && rA.a+rA.b>0) ra = rA.a/(rA.a+rA.b);
   const parteA = comp*ra, parteB = comp-parteA; const saldoA = pago.a-parteA;
-  return {tx,rec,desp,ess,saldo:rec-desp,cat,rA,pago,ind,comp,ra,parteA,parteB,saldoA};
+  const share = k => k==="a"?ra:1-ra;
+  const metasAp = k => S.metas.filter(m=>(+m.aporte||0)>0 && (+m.guardado||0)<(+m.alvo||0) && (!m.prazo||mk<=m.prazo)).reduce((t,m)=>{ const q=m.quem||"casal"; return t + (q==="casal"?(+m.aporte)*share(k):q===k?+m.aporte:0); },0);
+  const plano = k => { const fixas=fix[k]+fix.casal*share(k), parcelas=parc[k]+parc.casal*share(k), metas=metasAp(k), dia=indMan[k]+(k==="a"?parteA:parteB);
+    const entra=sal[k]+extra[k]; return {sal:sal[k],extra:extra[k],fixas,parcelas,metas,dia,livre:entra-fixas-parcelas-metas-dia}; };
+  return {tx,rec,desp,ess,saldo:rec-desp,cat,rA,pago,ind,comp,ra,parteA,parteB,saldoA,plano:{a:plano("a"),b:plano("b")}};
 }
 
 // ---------- Render ----------
@@ -621,18 +667,20 @@ function render(){
   const body = {painel:vPainel,lancamentos:vLanc,orcamento:vOrc,metas:vMetas,ajustes:vAjustes}[v]();
   const active = document.activeElement; const keepId = active && active.id && $("#main").contains(active) ? active.id : null;
   const selStart = keepId && active.selectionStart;
-  const TIT={painel:"Painel",lancamentos:"Lançamentos",orcamento:"Orçamento",metas:"Metas e dívidas",ajustes:"Ajustes"};
-  const DESC={painel:"Resumo do mês, o acerto entre vocês e para onde foi o dinheiro.",lancamentos:"Todas as receitas e despesas do mês. Toque em um lançamento para editar.",orcamento:"Quanto vocês planejam gastar por categoria e quanto já foi.",metas:"O que vocês estão juntando e o que ainda falta pagar.",ajustes:"Nomes, forma de dividir os gastos e dicas de uso."};
+  const TIT={painel:"Painel",lancamentos:"Lançamentos",orcamento:"Orçamento",metas:"Contas, dívidas e metas",ajustes:"Ajustes"};
+  const DESC={painel:"Resumo do mês, o acerto entre vocês e para onde foi o dinheiro.",lancamentos:"Todas as receitas e despesas do mês. Toque em um lançamento para editar.",orcamento:"Quanto vocês planejam gastar por categoria e quanto já foi.",metas:"Contas que se repetem todo mês, parcelas que avançam sozinhas e o que vocês estão juntando.",ajustes:"Nomes, salários, forma de dividir os gastos e dicas de uso."};
   $("#main").innerHTML = `<header class="page-head"><div><span class="eyebrow">${esc(monthName(S.month))} · ${esc(nome("a"))} & ${esc(nome("b"))}</span><h1>${TIT[v]}</h1><p>${DESC[v]}</p></div></header>` + notes + body;
   if(keepId){ const el=document.getElementById(keepId); if(el){ el.focus(); try{ if(selStart!=null) el.setSelectionRange(selStart,selStart);}catch(e){} } }
 }
 
 function txRow(l){
-  const q=l.quem==="b"?"b":"a"; const rec=l.tipo==="Receita";
+  const q=l.quem==="b"?"b":l.quem==="casal"?"c":"a"; const rec=l.tipo==="Receita";
+  const av = q==="c" ? `<span class="av c" title="Os dois">${esc(initial(nome("a"))+initial(nome("b")))}</span>` : `<span class="av ${q}" title="${esc(nome(q))}">${esc(initial(nome(q)))}</span>`;
+  const autoTag = l.auto ? `<span class="tag auto">${l.auto==="salario"?"Salário automático":l.auto==="fixa"?"Conta fixa":"Parcela automática"}</span>` : "";
   return `<button class="tx" data-edit="${esc(l.id)}">
-    <span class="av ${q}" title="${esc(nome(q))}">${esc(initial(nome(q)))}</span>
+    ${av}
     <span style="min-width:0"><div class="t">${esc(l.descricao||l.categoria)}</div>
-      <div class="m"><span>${esc(l.categoria)}</span>·<span>${esc(l.pagamento||"")}</span>${!rec ? (l.divisao==="individual"?`<span class="tag">Individual</span>`:`<span class="tag casal">Do casal</span>`):""}${l.essencial&&!rec?`<span class="tag">Essencial</span>`:""}</div></span>
+      <div class="m"><span>${esc(l.categoria)}</span>${l.auto?"":`·<span>${esc(l.pagamento||"")}</span>`}${autoTag}${l.auto?"":!rec ? (l.divisao==="individual"?`<span class="tag">Individual</span>`:`<span class="tag casal">Do casal</span>`):""}${l.essencial&&!rec&&!l.auto?`<span class="tag">Essencial</span>`:""}</div></span>
     <span class="val ${rec?"pos":""}">${rec?"+ ":"− "}${fmt(l.valor)}</span>
   </button>`;
 }
@@ -665,6 +713,7 @@ function vPainel(){
     <div class="card kpi"><div class="label">Saldo do mês</div><div class="v ${s.saldo<0?"neg":"pos"}">${fmt(s.saldo)}</div><div class="hint">${s.rec?`${Math.round(s.saldo/s.rec*100)}% da renda`:"sem receitas lançadas"}</div></div>
     <div class="card kpi"><div class="label">Essenciais</div><div class="v">${essPct}%</div><div class="hint">${fmt(s.ess)} das despesas</div></div>
   </section>
+  ${salarioCard(s)}
   <section class="grid g-2">
     <div class="card"><h2>Despesas por categoria <span class="sub">${esc(monthName(S.month,{month:"long"}))}</span></h2>
       ${cats.length? `<div class="bars">${cats.map(([c,v])=>`<div class="bar-row"><span>${esc(c)}</span><span class="amt">${fmt(v)}<small>${Math.round(v/s.desp*100)}%</small></span><div class="track"><div class="fill" style="width:${(v/maxC*100).toFixed(1)}%"></div></div></div>`).join("")}</div>`
@@ -675,13 +724,6 @@ function vPainel(){
         <div class="trend">${series.map(x=>`<div class="col ${x.mk===S.month?"sel":""}" title="${esc(monthName(x.mk))}: receitas ${fmt(x.r)}, despesas ${fmt(x.d)}"><i class="r" style="height:${(x.r/maxT*100).toFixed(1)}%"></i><i class="d" style="height:${(x.d/maxT*100).toFixed(1)}%"></i></div>`).join("")}</div>
         <div class="trend-x">${series.map(x=>`<span class="${x.mk===S.month?"sel":""}">${esc(shortMonth(x.mk))}</span>`).join("")}</div>
         <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>Receitas</span><span><i class="sw" style="background:var(--red)"></i>Despesas</span></div>
-      </div>
-      <div class="card"><h2>Gastos individuais</h2>
-        <div class="bars">
-          <div class="bar-row"><span><span class="dot a"></span> ${esc(A)}</span><span class="amt">${fmt(s.ind.a)}</span></div>
-          <div class="bar-row"><span><span class="dot b"></span> ${esc(B)}</span><span class="amt">${fmt(s.ind.b)}</span></div>
-        </div>
-        <p class="hint" style="color:var(--muted);font-size:13px;margin:10px 0 0">Despesas marcadas como “Individual” não entram no acerto.</p>
       </div>
     </div>
   </section>
@@ -735,38 +777,84 @@ function vOrc(){
   </section>`;
 }
 
-function parcInfo(d){
-  const t=+d.totalParcelas||0; if(!t) return "";
-  const pg=Math.min(+d.parcelasPagas||0,t), f=t-pg, pct=pg/t*100;
-  const fim = f>0 ? monthName(addMonths(monthKey(todayISO()),f-1),{month:"short",year:"numeric"}).replace(".","") : "";
-  return `<div class="track"><div class="fill" style="width:${pct.toFixed(1)}%"></div></div>
-      <div class="meta"><span>${pg} de ${t} parcelas pagas</span><span class="parc-left ${f===0?"done":""}">${f===0?"Quitada":`Faltam ${f}`}</span></div>
-      ${f>0?`<div class="meta"><span>${+d.parcela>0?`Restam cerca de ${fmt(f*d.parcela)}`:""}</span><span>Termina em ${esc(fim)}</span></div>`:""}`;
-}
 function vMetas(){
-  const now = monthKey(todayISO());
+  const now = CUR();
   const metas = [...S.metas].sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
-  const divs = [...S.dividas].sort((a,b)=>(Number(b.juros)||0)-(Number(a.juros)||0));
-  const totD = divs.reduce((t,d)=>t+(+d.saldo||0),0), totP = divs.reduce((t,d)=>t+(+d.parcela||0),0);
+  const fixas = S.dividas.filter(d=>divTipo(d)==="fixa").sort((a,b)=>(+a.vencimento||99)-(+b.vencimento||99));
+  const divs = S.dividas.filter(d=>divTipo(d)!=="fixa").sort((a,b)=>(Number(b.juros)||0)-(Number(a.juros)||0));
+  const fixAtivas = fixas.filter(d=>fixaAtiva(d,S.month));
+  const totF = fixAtivas.reduce((t,d)=>t+(+d.parcela||0),0);
+  const totD = divs.reduce((t,d)=>t+divSaldo(d),0);
+  const totP = divs.filter(d=>divTipo(d)==="parcelada" && (()=>{const p=parcState(d,S.month); return p.nMes>=1&&p.nMes<=p.t;})()).reduce((t,d)=>t+(+d.parcela||0),0);
   const goalCard = m => { const alvo=+m.alvo||0, g=+m.guardado||0, falta=Math.max(alvo-g,0); const pct=alvo?Math.min(1,g/alvo):0;
-    let aporte=""; if(m.prazo && falta>0){ const [y1,m1]=now.split("-").map(Number),[y2,m2]=m.prazo.split("-").map(Number); const n=(y2-y1)*12+(m2-m1)+1; aporte = n>0? `${fmt(falta/n)}/mês por ${n} ${n===1?"mês":"meses"}` : "prazo vencido"; }
-    return `<button class="goal" data-meta="${esc(m.id)}"><h3>${esc(m.nome)}</h3>
+    let sug=""; if(m.prazo && falta>0){ const n=mdiff(now,m.prazo)+1; sug = n>0? `${fmt(falta/n)}/mês por ${n} ${n===1?"mês":"meses"}` : "prazo vencido"; }
+    return `<button class="goal" data-meta="${esc(m.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(m.nome)}</h3>${quemChip(m.quem||"casal")}</div>
       <div class="big">${fmt(g)} <small>de ${fmt(alvo)}</small></div>
       <div class="track"><div class="fill" style="width:${(pct*100).toFixed(1)}%"></div></div>
-      <div class="meta"><span>${Math.round(pct*100)}% · falta ${fmt(falta)}</span><span>${m.prazo?"até "+esc(monthName(m.prazo,{month:"short",year:"numeric"})):"sem prazo"}</span></div>
-      ${aporte?`<div class="meta"><span>Guardar ${esc(aporte)}</span></div>`:""}</button>`; };
-  const debtCard = d => `<button class="goal" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--ink)"><h3>${esc(d.nome)}</h3><span class="prio ${esc(d.prioridade||"Média")}">${esc(d.prioridade||"Média")}</span></div>
-      <div class="big">${fmt(d.saldo)} <small>saldo atual</small></div>
-      ${parcInfo(d)}
-      <div class="meta"><span>Parcela ${fmt(d.parcela)}${d.vencimento?` · vence dia ${esc(d.vencimento)}`:""}</span><span>${(+d.juros||0).toLocaleString("pt-BR")}% a.m.</span></div></button>`;
-  return `<section class="card"><h2>Metas de economia <button class="btn small" id="add-meta" ${S.readOnly?"hidden":""}>+ Nova meta</button></h2>
-      ${metas.length?`<div class="goals">${metas.map(goalCard).join("")}</div>`:`<div class="empty"><b>Nenhuma meta ainda</b>Reserva de emergência, viagem, casa nova: crie a primeira meta do casal.</div>`}
+      <div class="meta"><span>${Math.round(pct*100)}% · falta ${fmt(falta)}</span><span>${m.prazo?"até "+esc(monthName(m.prazo,{month:"short",year:"numeric"}).replace(".","")):"sem prazo"}</span></div>
+      ${+m.aporte>0&&falta>0?`<div class="meta"><span>Aporte de ${fmt(m.aporte)}/mês sai do salário</span></div>`:sug?`<div class="meta"><span>Sugestão: guardar ${esc(sug)}</span></div>`:""}</button>`; };
+  const fixaCard = d => { const ativa=fixaAtiva(d,S.month);
+    return `<button class="goal" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(d.nome)}</h3>${quemChip(d.quem||"casal")}</div>
+      <div class="big">${fmt(d.parcela)} <small>por mês</small></div>
+      <div class="meta"><span>${esc(d.categoria||"Contas")}${d.vencimento?` · vence dia ${esc(d.vencimento)}`:""}</span><span class="parc-left ${ativa?"done":""}">${ativa?"Ativa":"Fora do mês"}</span></div>
+      <div class="meta"><span>Desde ${esc(monthName(d.inicio||now,{month:"short",year:"numeric"}).replace(".",""))}${d.fim?` até ${esc(monthName(d.fim,{month:"short",year:"numeric"}).replace(".",""))}`:" · sem data para acabar"}</span></div></button>`; };
+  const debtCard = d => { const tp=divTipo(d);
+    let info="";
+    if(tp==="parcelada"){ const p=parcState(d), pm=parcState(d,S.month), pct=p.t?p.pagas/p.t*100:0;
+      info = `<div class="track"><div class="fill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="meta"><span>${p.pagas} de ${p.t} parcelas pagas</span><span class="parc-left ${p.faltam===0?"done":""}">${p.faltam===0?"Quitada":`Faltam ${p.faltam}`}</span></div>
+      <div class="meta"><span>${pm.nMes>=1&&pm.nMes<=pm.t?`Em ${esc(monthName(S.month,{month:"short"}).replace(".",""))}: parcela ${pm.nMes}/${pm.t}`:pm.nMes>pm.t?"Sem parcela neste mês":"Ainda não começou"}</span><span>Última em ${esc(monthName(p.fim,{month:"short",year:"numeric"}).replace(".",""))}</span></div>`; }
+    return `<button class="goal" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(d.nome)}</h3>${quemChip(d.quem||"casal")}</div>
+      <div class="big">${fmt(divSaldo(d))} <small>${tp==="parcelada"?"restante":"saldo atual"}</small></div>
+      ${info}
+      <div class="meta"><span>${+d.parcela>0?`Parcela ${fmt(d.parcela)}`:"Sem parcela fixa"}${d.vencimento?` · dia ${esc(d.vencimento)}`:""}</span><span><span class="prio ${esc(d.prioridade||"Média")}">${esc(d.prioridade||"Média")}</span></span></div>
+      ${+d.juros>0?`<div class="meta"><span>Juros de ${(+d.juros).toLocaleString("pt-BR")}% ao mês</span></div>`:""}</button>`; };
+  const add = (id,txt) => S.readOnly?"":`<button class="btn small" id="${id}">${txt}</button>`;
+  return `<section class="card"><h2>Contas fixas <span class="sub">${fixas.length?`${fmt(totF)} em ${esc(monthName(S.month,{month:"long"}))}`:"Contas que vocês pagam todo mês"}</span></h2>
+      <div class="row-actions" style="justify-content:flex-start;margin-bottom:12px">${add("add-fixa","+ Nova conta fixa")}</div>
+      ${fixas.length?`<div class="goals">${fixas.map(fixaCard).join("")}</div><p style="color:var(--muted);font-size:13px;margin:12px 0 0">Elas entram sozinhas como despesa em todo mês ativo e saem do salário de quem é responsável.</p>`:`<div class="empty"><b>Nenhuma conta fixa ainda</b>Aluguel, internet, luz, academia, streaming: cadastre uma vez e ela aparece todo mês.</div>`}
     </section>
-    <section class="card"><h2>Dívidas <span class="sub">${divs.length?`Total ${fmt(totD)} · parcelas ${fmt(totP)}/mês`:""}</span></h2>
-      <div class="row-actions" style="justify-content:flex-start;margin-bottom:12px"><button class="btn small" id="add-divida" ${S.readOnly?"hidden":""}>+ Nova dívida</button></div>
-      ${divs.length?`<div class="goals">${divs.map(debtCard).join("")}</div><p style="color:var(--muted);font-size:13px;margin:12px 0 0">Ordenadas pelos maiores juros: em geral vale priorizar essas. Confirme valores e condições com o credor.</p>`:`<div class="empty"><b>Nenhuma dívida registrada</b>Se tiverem alguma, registre saldo, parcela e juros para acompanhar.</div>`}
+    <section class="card"><h2>Dívidas <span class="sub">${divs.length?`Restante ${fmt(totD)} · parcelas ${fmt(totP)} neste mês`:""}</span></h2>
+      <div class="row-actions" style="justify-content:flex-start;margin-bottom:12px">${add("add-divida","+ Nova dívida")}</div>
+      ${divs.length?`<div class="goals">${divs.map(debtCard).join("")}</div><p style="color:var(--muted);font-size:13px;margin:12px 0 0">As parcelas avançam sozinhas a cada mês até a última. Ordenadas pelos maiores juros.</p>`:`<div class="empty"><b>Nenhuma dívida registrada</b>Empréstimos, compras parceladas, financiamentos: as parcelas entram sozinhas em cada mês.</div>`}
+    </section>
+    <section class="card"><h2>Metas de economia</h2>
+      <div class="row-actions" style="justify-content:flex-start;margin-bottom:12px">${add("add-meta","+ Nova meta")}</div>
+      ${metas.length?`<div class="goals">${metas.map(goalCard).join("")}</div>`:`<div class="empty"><b>Nenhuma meta ainda</b>Reserva de emergência, viagem, casa nova: crie a primeira meta do casal.</div>`}
     </section>`;
 }
+
+function salarioCard(s){
+  const temSal = ["a","b"].some(k=>s.plano[k].sal>0||s.plano[k].extra>0);
+  const linha = (t,v,neg=true) => `<div class="sal-row"><span>${t}</span><span class="num">${v?(neg?"− ":"")+fmt(v):"—"}</span></div>`;
+  const col = k => { const p=s.plano[k]; const entra=p.sal+p.extra; const pct=entra>0?Math.max(0,Math.min(1,p.livre/entra)):0;
+    return `<div class="sal-col"><div class="sal-head"><span class="dot ${k}"></span><b>${esc(nome(k))}</b></div>
+      <div class="sal-big ${p.livre<0?"neg":""}">${fmt(p.livre)}</div><span class="label">Livre no mês</span>
+      <div class="track" style="margin:10px 0 12px"><div class="fill" style="width:${(pct*100).toFixed(1)}%"></div></div>
+      ${linha("Salário",p.sal,false)}${p.extra?linha("Outras receitas",p.extra,false):""}
+      ${linha("Contas fixas",p.fixas)}${linha("Parcelas",p.parcelas)}${linha("Metas",p.metas)}${linha("Gastos do dia a dia",p.dia)}</div>`; };
+  return `<section class="card"><h2>Salário do mês <a href="#ajustes" class="sub">${temSal?"Editar salários":"Cadastrar salários"}</a></h2>
+    ${temSal?`<div class="sal-grid">${col("a")}${col("b")}</div><p style="color:var(--muted);font-size:13px;margin:14px 0 0">O que é dos dois é dividido ${S.config.divisao==="proporcional"?"pela renda":"meio a meio"}. Gastos do dia a dia já contam o acerto do mês.</p>`
+      :`<div class="empty"><b>Cadastre quanto vocês recebem</b>Em Ajustes, coloque o salário de cada um. Ele entra sozinho todo mês e as contas, parcelas e metas são abatidas dele.</div>`}
+  </section>`;
+}
+
+function salarioFields(c){
+  const ro=S.readOnly?"disabled":"";
+  const v = x => x?String(x).replace(".",","):"";
+  return `<section class="card settings">
+    <h2>Quanto vocês recebem</h2>
+    <div class="form">
+      <div class="field"><label for="s-salA"><span class="dot a"></span> Salário de ${esc(nome("a"))} (R$)</label><input id="s-salA" inputmode="decimal" placeholder="0,00" value="${v(c.salarioA)}" ${ro}></div>
+      <div class="field"><label for="s-diaA">Dia do pagamento</label><input id="s-diaA" inputmode="numeric" maxlength="2" placeholder="5" value="${esc(c.diaSalA||"")}" ${ro}></div>
+      <div class="field"><label for="s-salB"><span class="dot b"></span> Salário de ${esc(nome("b"))} (R$)</label><input id="s-salB" inputmode="decimal" placeholder="0,00" value="${v(c.salarioB)}" ${ro}></div>
+      <div class="field"><label for="s-diaB">Dia do pagamento</label><input id="s-diaB" inputmode="numeric" maxlength="2" placeholder="5" value="${esc(c.diaSalB||"")}" ${ro}></div>
+      <div class="field full"><div class="help">O salário entra sozinho todo mês em Lançamentos, a partir de ${esc(monthName(c.salInicio||CUR()))}. Não precisa lançar de novo. Bônus, freelas e outras entradas vocês lançam normalmente como Receita.</div></div>
+    </div>
+    <div class="row-actions" style="justify-content:flex-start"><button class="btn primary" id="s-save2" ${S.readOnly?"hidden":""}>Salvar salários</button></div>
+  </section>`;
+}
+
 
 function vAjustes(){
   const c=S.config;
@@ -783,11 +871,13 @@ function vAjustes(){
     </div>
     <div class="row-actions" style="justify-content:flex-start"><button class="btn primary" id="s-save" ${S.readOnly?"hidden":""}>Salvar ajustes</button></div>
   </section>
+  ${salarioFields(c)}
   <section class="card settings">
     <h2>Como usar</h2>
     <div style="display:grid;gap:8px;font-size:14px;color:var(--muted)">
       <p style="margin:0"><b style="color:var(--ink)">Cartão de crédito:</b> lance cada compra na data da compra. Quando pagar a fatura, não lance o pagamento de novo, senão conta duas vezes.</p>
       <p style="margin:0"><b style="color:var(--ink)">Do casal ou individual:</b> despesas do casal entram no acerto do mês; as individuais ficam só na conta de quem gastou.</p>
+      <p style="margin:0"><b style="color:var(--ink)">Automáticos:</b> salários, contas fixas e parcelas aparecem sozinhos em Lançamentos todo mês, com a etiqueta “Automático”. Para mudar, edite em Ajustes ou em Contas e metas.</p>
       <p style="margin:0"><b style="color:var(--ink)">Instalar no iPhone:</b> abra no Safari, toque em Compartilhar e em “Adicionar à Tela de Início”.</p>
       <p style="margin:0"><b style="color:var(--ink)">Privacidade:</b> não guarde senhas, números completos de cartão ou dados de acesso ao banco.</p>
     </div>
@@ -866,63 +956,100 @@ function txModal(id){
 }
 
 function metaModal(id){
-  const ex = id? S.metas.find(m=>m.id===id):null; const m = ex || {nome:"",alvo:"",guardado:"",prazo:""}; const ro=S.readOnly;
+  const ex = id? S.metas.find(m=>m.id===id):null; const m = ex || {nome:"",alvo:"",guardado:"",prazo:"",aporte:"",quem:"casal"}; const ro=S.readOnly;
+  const n = v => v!==""&&v!=null&&+v ? String(v).replace(".",",") : "";
   openModal(`<h2>${ex?"Editar meta":"Nova meta"}<button class="x" data-close aria-label="Fechar">×</button></h2>
     <form class="form" id="mf" novalidate>
       <div class="field full"><label for="m-nome">Meta</label><input id="m-nome" maxlength="60" placeholder="Ex.: Viagem de fim de ano" value="${esc(m.nome)}"></div>
-      <div class="field"><label for="m-alvo">Valor desejado (R$)</label><input id="m-alvo" inputmode="decimal" value="${m.alvo!==""?String(m.alvo).replace(".",","):""}"></div>
-      <div class="field"><label for="m-g">Já guardado (R$)</label><input id="m-g" inputmode="decimal" value="${m.guardado!==""?String(m.guardado).replace(".",","):""}"></div>
+      <div class="field full"><span class="lbl">De quem é a meta</span>${quemSeg("mquem",m.quem||"casal")}</div>
+      <div class="field"><label for="m-alvo">Valor desejado (R$)</label><input id="m-alvo" inputmode="decimal" value="${n(m.alvo)}"></div>
+      <div class="field"><label for="m-g">Já guardado (R$)</label><input id="m-g" inputmode="decimal" value="${n(m.guardado)}"></div>
       <div class="field"><label for="m-prazo">Prazo</label><input id="m-prazo" type="month" value="${esc(m.prazo)}"></div>
-      <div class="field"><label for="m-add">Guardar mais agora (R$)</label><input id="m-add" inputmode="decimal" placeholder="Soma ao já guardado"></div>
+      <div class="field"><label for="m-ap">Aporte mensal (R$)</label><input id="m-ap" inputmode="decimal" placeholder="Opcional" value="${n(m.aporte)}"></div>
+      <div class="field full" id="m-sug-wrap" hidden><div class="help" id="m-sug"></div></div>
+      <div class="field full"><label for="m-add">Guardar mais agora (R$)</label><input id="m-add" inputmode="decimal" placeholder="Soma ao já guardado"></div>
       <div class="full err" id="m-err" hidden></div>
     </form>
     <div class="sheet-actions"><div>${ex&&!ro?`<button class="btn danger" id="m-del">Excluir</button>`:""}</div>
       <div class="row-actions"><button class="btn" data-close>Cancelar</button>${ro?"":`<button class="btn primary" id="m-save">Salvar</button>`}</div></div>`, ov=>{
     if(ro) ov.querySelectorAll("input").forEach(i=>i.disabled=true);
+    const sug=()=>{ const alvo=parseMoney($("#m-alvo").value), g=parseMoney($("#m-g").value)||0, pr=$("#m-prazo").value, w=$("#m-sug-wrap");
+      if(!(alvo>0)||!pr){ w.hidden=true; return; } const falta=Math.max(alvo-g,0), k=mdiff(CUR(),pr)+1; w.hidden=false;
+      $("#m-sug").textContent = falta<=0 ? "Meta já alcançada!" : k>0 ? `Para chegar no prazo, guardem cerca de ${fmt(falta/k)} por mês durante ${k} ${k===1?"mês":"meses"}. O aporte mensal sai do salário de quem é a meta.` : "O prazo já passou. Escolha uma nova data."; };
+    ["m-alvo","m-g","m-prazo"].forEach(i=>$("#"+i).addEventListener("input",sug)); sug();
     const save=async()=>{ const nomeM=$("#m-nome").value.trim(), alvo=parseMoney($("#m-alvo").value); let g=parseMoney($("#m-g").value); if(isNaN(g)) g=0; const add=parseMoney($("#m-add").value); if(add>0) g+=add;
       if(!nomeM||!(alvo>0)){ const e=$("#m-err"); e.hidden=false; e.textContent="Dê um nome e um valor desejado maior que zero."; return; }
-      try{ await put("metas", ex?ex.id:newId(), {nome:nomeM, alvo:Math.round(alvo*100)/100, guardado:Math.round(g*100)/100, prazo:$("#m-prazo").value||""}); closeModal(); toast("Meta salva"); }catch(e){} };
+      const ap=parseMoney($("#m-ap").value);
+      try{ await put("metas", ex?ex.id:newId(), {nome:nomeM, quem:$("#mf [name=mquem]:checked").value, alvo:Math.round(alvo*100)/100, guardado:Math.round(g*100)/100, prazo:$("#m-prazo").value||"", aporte:ap>0?Math.round(ap*100)/100:0}); closeModal(); toast("Meta salva"); }catch(e){} };
     $("#m-save")?.addEventListener("click",save); $("#mf").addEventListener("submit",e=>{e.preventDefault();save();});
     const d=$("#m-del"); d && armDelete(d, async()=>{ try{ await del("metas",ex.id); closeModal(); toast("Meta excluída"); }catch(e){} });
   });
 }
 
-function dividaModal(id){
-  const ex = id? S.dividas.find(m=>m.id===id):null; const d = ex || {nome:"",saldo:"",parcela:"",totalParcelas:"",parcelasPagas:"",vencimento:"",juros:"",prioridade:"Média",obs:""}; const ro=S.readOnly;
-  const n = v => v!==""&&v!=null ? String(v).replace(".",",") : "";
-  openModal(`<h2>${ex?"Editar dívida":"Nova dívida"}<button class="x" data-close aria-label="Fechar">×</button></h2>
+function quemSeg(name,val){
+  return `<div class="seg">${[["a",nome("a")],["b",nome("b")],["casal","Os dois"]].map(([v,t])=>`<input type="radio" name="${name}" id="${name}-${v}" value="${v}" ${val===v?"checked":""}><label for="${name}-${v}">${v==="casal"?`<span class="dot a"></span><span class="dot b" style="margin-left:-9px"></span>`:`<span class="dot ${v}"></span>`}${esc(t)}</label>`).join("")}</div>`;
+}
+
+function dividaModal(id, tipoNovo){
+  const ex = id? S.dividas.find(m=>m.id===id):null;
+  const d = ex || {tipo:tipoNovo||"parcelada",nome:"",quem:"casal",saldo:"",parcela:"",totalParcelas:"",vencimento:"",juros:"",prioridade:"Média",categoria:"Contas",inicio:CUR(),fim:"",obs:""};
+  const tp0 = divTipo(d); const ro=S.readOnly;
+  const n = v => v!==""&&v!=null&&+v ? String(v).replace(".",",") : "";
+  const pgAntes = tp0==="parcelada" && +d.totalParcelas ? Math.min(Math.max(mdiff(divInicio(d),CUR()),0),+d.totalParcelas) : "";
+  const titulo = ex ? (tp0==="fixa"?"Editar conta fixa":"Editar dívida") : (tp0==="fixa"?"Nova conta fixa":"Nova dívida");
+  openModal(`<h2>${titulo}<button class="x" data-close aria-label="Fechar">×</button></h2>
     <form class="form" id="df" novalidate>
-      <div class="field full"><label for="d-nome">Dívida / credor</label><input id="d-nome" maxlength="60" placeholder="Ex.: Empréstimo banco" value="${esc(d.nome)}"></div>
-      <div class="field"><label for="d-saldo">Saldo atual (R$)</label><input id="d-saldo" inputmode="decimal" value="${n(d.saldo)}"></div>
-      <div class="field"><label for="d-parc">Parcela mensal (R$)</label><input id="d-parc" inputmode="decimal" value="${n(d.parcela)}"></div>
-      <div class="field"><label for="d-total">Total de parcelas</label><input id="d-total" inputmode="numeric" maxlength="3" placeholder="Ex.: 12" value="${d.totalParcelas?esc(d.totalParcelas):""}"></div>
-      <div class="field"><label for="d-pagas">Parcelas já pagas</label><div style="display:flex;gap:8px;align-items:flex-end"><input id="d-pagas" inputmode="numeric" maxlength="3" placeholder="0" value="${d.parcelasPagas!=null&&d.parcelasPagas!==""?esc(d.parcelasPagas):""}" style="flex:1">${ro?"":`<button type="button" class="btn ghost small" id="d-mais" style="margin-bottom:2px">+1 paga</button>`}</div></div>
-      <div class="field full" id="d-resumo-wrap" hidden><div class="help" id="d-resumo"></div></div>
-      <div class="field"><label for="d-venc">Dia do vencimento</label><input id="d-venc" inputmode="numeric" maxlength="2" value="${esc(d.vencimento)}"></div>
-      <div class="field"><label for="d-juros">Juros (% ao mês)</label><input id="d-juros" inputmode="decimal" value="${n(d.juros)}"></div>
-      <div class="field full"><span class="lbl">Prioridade</span><div class="seg">${PRIOS.map((p,i)=>`<input type="radio" name="prio" id="p-${i}" value="${p}" ${d.prioridade===p?"checked":""}><label for="p-${i}">${p}</label>`).join("")}</div></div>
-      <div class="field full"><label for="d-obs">Observações</label><input id="d-obs" maxlength="140" value="${esc(d.obs)}"></div>
+      <div class="field full"><span class="lbl">Tipo</span><div class="seg">
+        <input type="radio" name="dtipo" id="dt-p" value="parcelada" ${tp0==="parcelada"?"checked":""}><label for="dt-p">Parcelada</label>
+        <input type="radio" name="dtipo" id="dt-f" value="fixa" ${tp0==="fixa"?"checked":""}><label for="dt-f">Fixa (todo mês)</label>
+        <input type="radio" name="dtipo" id="dt-a" value="avulsa" ${tp0==="avulsa"?"checked":""}><label for="dt-a">Sem parcelas</label></div></div>
+      <div class="field full"><label for="d-nome" id="d-nome-l">Dívida / credor</label><input id="d-nome" maxlength="60" value="${esc(d.nome)}"></div>
+      <div class="field full"><span class="lbl" id="d-quem-l">De quem é</span>${quemSeg("dquem",d.quem||"casal")}</div>
+      <div class="field t-p t-f"><label for="d-parc" id="d-parc-l">Valor da parcela (R$)</label><input id="d-parc" inputmode="decimal" value="${n(d.parcela)}"></div>
+      <div class="field t-p t-f t-a"><label for="d-venc">Dia do vencimento</label><input id="d-venc" inputmode="numeric" maxlength="2" value="${esc(d.vencimento||"")}"></div>
+      <div class="field t-p"><label for="d-total">Total de parcelas</label><input id="d-total" inputmode="numeric" maxlength="3" placeholder="Ex.: 12" value="${+d.totalParcelas?esc(d.totalParcelas):""}"></div>
+      <div class="field t-p"><label for="d-pagas">Pagas antes deste mês</label><input id="d-pagas" inputmode="numeric" maxlength="3" placeholder="0" value="${pgAntes===""?"":esc(pgAntes)}"></div>
+      <div class="field full t-p" id="d-resumo-wrap" hidden><div class="help" id="d-resumo"></div></div>
+      <div class="field t-f"><label for="d-cat">Categoria</label><select id="d-cat">${CAT_DESP.map(c=>`<option ${(d.categoria||"Contas")===c?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+      <div class="field t-f"><label for="d-ini">Começa em</label><input id="d-ini" type="month" value="${esc(d.inicio||CUR())}"></div>
+      <div class="field t-f"><label for="d-fim">Termina em (opcional)</label><input id="d-fim" type="month" value="${esc(d.fim||"")}"></div>
+      <div class="field t-a"><label for="d-saldo">Saldo atual (R$)</label><input id="d-saldo" inputmode="decimal" value="${n(d.saldo)}"></div>
+      <div class="field t-p t-a"><label for="d-juros">Juros (% ao mês)</label><input id="d-juros" inputmode="decimal" value="${n(d.juros)}"></div>
+      <div class="field full t-p t-a"><span class="lbl">Prioridade</span><div class="seg">${PRIOS.map((p,i)=>`<input type="radio" name="prio" id="p-${i}" value="${p}" ${(d.prioridade||"Média")===p?"checked":""}><label for="p-${i}">${p}</label>`).join("")}</div></div>
+      <div class="field full t-f"><div class="help">A conta entra sozinha como despesa em todo mês, a partir do mês de início, e sai do salário de quem é responsável. Se for dos dois, é dividida entre vocês.</div></div>
+      <div class="field full"><label for="d-obs">Observações</label><input id="d-obs" maxlength="140" value="${esc(d.obs||"")}"></div>
       <div class="full err" id="d-err" hidden></div>
     </form>
     <div class="sheet-actions"><div>${ex&&!ro?`<button class="btn danger" id="d-del">Excluir</button>`:""}</div>
       <div class="row-actions"><button class="btn" data-close>Cancelar</button>${ro?"":`<button class="btn primary" id="d-save">Salvar</button>`}</div></div>`, ov=>{
-    if(ro) ov.querySelectorAll("input").forEach(i=>i.disabled=true);
+    if(ro) ov.querySelectorAll("input,select").forEach(i=>i.disabled=true);
     const int = v => { const x=parseInt(String(v).replace(/\D/g,""),10); return isNaN(x)?null:x; };
+    const tipo = () => $("#df [name=dtipo]:checked").value;
     const resumo=()=>{ const t=int($("#d-total").value), pg=int($("#d-pagas").value)||0, pc=parseMoney($("#d-parc").value); const w=$("#d-resumo-wrap");
-      if(!t){ w.hidden=true; return; } w.hidden=false; const f=Math.max(t-pg,0);
-      $("#d-resumo").textContent = pg>t ? `As parcelas pagas (${pg}) passam do total (${t}). Confira os números.` : f===0 ? `Todas as ${t} parcelas foram pagas. Dívida quitada!` : `Faltam ${f} de ${t} parcelas${pc>0?`, cerca de ${fmt(f*pc)} no total`:""}. Quitação prevista: ${monthName(addMonths(monthKey(todayISO()),f-1),{month:"long",year:"numeric"})}.`; };
-    ["d-total","d-pagas","d-parc"].forEach(i=>$("#"+i).addEventListener("input",resumo)); resumo();
-    $("#d-mais")?.addEventListener("click",()=>{ const t=int($("#d-total").value), pg=int($("#d-pagas").value)||0; if(t && pg>=t) return; $("#d-pagas").value=pg+1;
-      const pc=parseMoney($("#d-parc").value), sd=parseMoney($("#d-saldo").value); if(pc>0 && sd>0) $("#d-saldo").value=String(Math.max(0,Math.round((sd-pc)*100)/100)).replace(".",","); resumo(); });
-    const save=async()=>{ const nm=$("#d-nome").value.trim(); let saldo=parseMoney($("#d-saldo").value); const e=$("#d-err");
-      const t=int($("#d-total").value), pg=int($("#d-pagas").value)||0, pc=parseMoney($("#d-parc").value);
-      if(isNaN(saldo) && t && pc>0) saldo=Math.max(t-pg,0)*pc;
-      if(!nm||!(saldo>=0)){ e.hidden=false; e.textContent="Informe o credor e o saldo atual (ou o total de parcelas e o valor da parcela)."; return; }
-      if(t && pg>t){ e.hidden=false; e.textContent="As parcelas pagas não podem passar do total de parcelas."; return; }
+      if(tipo()!=="parcelada"||!t){ w.hidden=true; return; } w.hidden=false; const f=t-pg;
+      $("#d-resumo").textContent = pg>t ? `As parcelas pagas (${pg}) passam do total (${t}). Confira os números.` : f<=0 ? `Todas as ${t} parcelas já foram pagas. Dívida quitada!` : `Parcela deste mês: ${pg+1} de ${t}. Faltam ${f} contando esta${pc>0?`, cerca de ${fmt(f*pc)}`:""}. A última fica em ${monthName(addMonths(CUR(),f-1))}. Cada mês a parcela avança sozinha.`; };
+    const sync=()=>{ const t=tipo(); ov.querySelectorAll(".t-p,.t-f,.t-a").forEach(el=>el.hidden=!el.classList.contains("t-"+t[0]));
+      $("#d-nome-l").textContent = t==="fixa"?"Conta":"Dívida / credor"; $("#d-nome").placeholder = t==="fixa"?"Ex.: Aluguel, internet, academia":"Ex.: Empréstimo, celular parcelado";
+      $("#d-parc-l").textContent = t==="fixa"?"Valor mensal (R$)":"Valor da parcela (R$)"; $("#d-quem-l").textContent = t==="fixa"?"Quem é responsável":"De quem é"; resumo(); };
+    ov.querySelectorAll("[name=dtipo]").forEach(r=>r.addEventListener("change",sync));
+    ["d-total","d-pagas","d-parc"].forEach(i=>$("#"+i).addEventListener("input",resumo)); sync();
+    const save=async()=>{ const e=$("#d-err"); const t=tipo(); const nm=$("#d-nome").value.trim();
       const z=v=>{ const x=parseMoney(v); return isNaN(x)?0:Math.round(x*100)/100; };
-      try{ await put("dividas", ex?ex.id:newId(), {nome:nm, saldo:Math.round(saldo*100)/100, parcela:z($("#d-parc").value), totalParcelas:t||0, parcelasPagas:t?pg:0, vencimento:$("#d-venc").value.replace(/\D/g,""), juros:z($("#d-juros").value), prioridade:$("#df [name=prio]:checked")?.value||"Média", obs:$("#d-obs").value.trim()}); closeModal(); toast("Dívida salva"); }catch(e){} };
-    $("#d-save")?.addEventListener("click",save); $("#df").addEventListener("submit",e=>{e.preventDefault();save();});
-    const b=$("#d-del"); b && armDelete(b, async()=>{ try{ await del("dividas",ex.id); closeModal(); toast("Dívida excluída"); }catch(e){} });
+      const doc={tipo:t, nome:nm, quem:$("#df [name=dquem]:checked").value, vencimento:$("#d-venc").value.replace(/\D/g,"").slice(0,2), obs:$("#d-obs").value.trim()};
+      if(!nm){ e.hidden=false; e.textContent= t==="fixa"?"Dê um nome para a conta.":"Informe a dívida ou o credor."; return; }
+      if(t==="fixa"){ const v=parseMoney($("#d-parc").value); if(!(v>0)){ e.hidden=false; e.textContent="Informe o valor mensal da conta."; return; }
+        const ini=$("#d-ini").value||CUR(), fim=$("#d-fim").value||""; if(fim && fim<ini){ e.hidden=false; e.textContent="O mês final não pode ser antes do mês de início."; return; }
+        Object.assign(doc,{parcela:Math.round(v*100)/100, categoria:$("#d-cat").value, inicio:ini, fim}); }
+      if(t==="parcelada"){ const tot=int($("#d-total").value), pg=int($("#d-pagas").value)||0, v=parseMoney($("#d-parc").value);
+        if(!tot){ e.hidden=false; e.textContent="Informe o total de parcelas."; return; }
+        if(!(v>0)){ e.hidden=false; e.textContent="Informe o valor da parcela."; return; }
+        if(pg>tot){ e.hidden=false; e.textContent="As parcelas pagas não podem passar do total."; return; }
+        Object.assign(doc,{parcela:Math.round(v*100)/100, totalParcelas:tot, inicio:addMonths(CUR(),-pg), juros:z($("#d-juros").value), prioridade:$("#df [name=prio]:checked")?.value||"Média"}); }
+      if(t==="avulsa"){ const sd=parseMoney($("#d-saldo").value); if(!(sd>=0)){ e.hidden=false; e.textContent="Informe o saldo atual da dívida."; return; }
+        Object.assign(doc,{saldo:Math.round(sd*100)/100, juros:z($("#d-juros").value), prioridade:$("#df [name=prio]:checked")?.value||"Média"}); }
+      try{ await put("dividas", ex?ex.id:newId(), doc); closeModal(); toast(t==="fixa"?"Conta fixa salva":"Dívida salva"); }catch(x){} };
+    $("#d-save")?.addEventListener("click",save); $("#df").addEventListener("submit",ev=>{ev.preventDefault();save();});
+    const b=$("#d-del"); b && armDelete(b, async()=>{ try{ await del("dividas",ex.id); closeModal(); toast("Excluído"); }catch(x){} });
   });
 }
 
@@ -936,15 +1063,19 @@ $("#fab2").addEventListener("click",()=>txModal());
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && $("#ov")) closeModal(); });
 $("#main").addEventListener("click",e=>{
   if(e.target.closest("[data-logout-inline]")){ window.FB.signOut(window.FB.auth); return; }
-  const t=e.target.closest("[data-edit],[data-meta],[data-divida],[data-ft],[data-fq],#add-meta,#add-divida,#s-save"); if(!t) return;
+  const t=e.target.closest("[data-edit],[data-meta],[data-divida],[data-ft],[data-fq],#add-meta,#add-divida,#add-fixa,#s-save,#s-save2"); if(!t) return;
   if(t.dataset.ft!==undefined){ S.filt.tipo=t.dataset.ft; render(); return; }
   if(t.dataset.fq!==undefined){ S.filt.quem=t.dataset.fq; render(); return; }
-  if(t.dataset.edit) txModal(t.dataset.edit);
+  if(t.dataset.edit){ const id=t.dataset.edit; if(id.startsWith("auto:sal:")){ location.hash="#ajustes"; toast("O salário automático se edita aqui em Ajustes"); } else if(id.startsWith("auto:div:")) dividaModal(id.slice(9)); else txModal(id); }
   else if(t.dataset.meta) metaModal(t.dataset.meta);
   else if(t.dataset.divida) dividaModal(t.dataset.divida);
   else if(t.id==="add-meta") metaModal();
-  else if(t.id==="add-divida") dividaModal();
-  else if(t.id==="s-save"){ const cfg={nomeA:$("#s-a").value.trim()||"Pessoa 1", nomeB:$("#s-b").value.trim()||"Pessoa 2", divisao:document.querySelector("[name=s-div]:checked").value};
+  else if(t.id==="add-divida") dividaModal(null,"parcelada");
+  else if(t.id==="add-fixa") dividaModal(null,"fixa");
+  else if(t.id==="s-save2"){ const m=v=>{ const x=parseMoney(v); return x>0?Math.round(x*100)/100:0; }, dd=v=>{ const x=parseInt(String(v).replace(/\D/g,""),10); return x>=1&&x<=31?x:""; };
+    const cfg={...S.config, salarioA:m($("#s-salA").value), salarioB:m($("#s-salB").value), diaSalA:dd($("#s-diaA").value), diaSalB:dd($("#s-diaB").value), salInicio:S.config.salInicio||CUR()};
+    put("config","geral",cfg).then(()=>toast("Salários salvos")).catch(()=>{}); }
+  else if(t.id==="s-save"){ const cfg={...S.config, nomeA:$("#s-a").value.trim()||"Pessoa 1", nomeB:$("#s-b").value.trim()||"Pessoa 2", divisao:document.querySelector("[name=s-div]:checked").value};
     put("config","geral",cfg).then(()=>toast("Ajustes salvos")).catch(()=>{}); }
 });
 $("#main").addEventListener("input",e=>{
