@@ -221,6 +221,8 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .prio::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .prio.Alta{background:rgba(255,80,59,.12);color:var(--red-soft)}
 .prio.Média{background:rgba(255,181,71,.12);color:var(--warn)}
+.parc-left{font:500 10.5px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:3px 10px;background:rgba(255,80,59,.12);color:var(--red-soft)}
+.parc-left.done{background:rgba(213,255,86,.08);color:var(--accent)}
 .prio.Baixa{background:rgba(255,255,255,.05);color:var(--label)}
 .empty{color:#777;padding:28px 4px;text-align:center;font-size:13px}
 .empty b{display:block;color:#e5e4e0;font:500 18px var(--display);letter-spacing:-.02em;margin-bottom:6px}
@@ -733,6 +735,14 @@ function vOrc(){
   </section>`;
 }
 
+function parcInfo(d){
+  const t=+d.totalParcelas||0; if(!t) return "";
+  const pg=Math.min(+d.parcelasPagas||0,t), f=t-pg, pct=pg/t*100;
+  const fim = f>0 ? monthName(addMonths(monthKey(todayISO()),f-1),{month:"short",year:"numeric"}).replace(".","") : "";
+  return `<div class="track"><div class="fill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="meta"><span>${pg} de ${t} parcelas pagas</span><span class="parc-left ${f===0?"done":""}">${f===0?"Quitada":`Faltam ${f}`}</span></div>
+      ${f>0?`<div class="meta"><span>${+d.parcela>0?`Restam cerca de ${fmt(f*d.parcela)}`:""}</span><span>Termina em ${esc(fim)}</span></div>`:""}`;
+}
 function vMetas(){
   const now = monthKey(todayISO());
   const metas = [...S.metas].sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
@@ -747,6 +757,7 @@ function vMetas(){
       ${aporte?`<div class="meta"><span>Guardar ${esc(aporte)}</span></div>`:""}</button>`; };
   const debtCard = d => `<button class="goal" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--ink)"><h3>${esc(d.nome)}</h3><span class="prio ${esc(d.prioridade||"Média")}">${esc(d.prioridade||"Média")}</span></div>
       <div class="big">${fmt(d.saldo)} <small>saldo atual</small></div>
+      ${parcInfo(d)}
       <div class="meta"><span>Parcela ${fmt(d.parcela)}${d.vencimento?` · vence dia ${esc(d.vencimento)}`:""}</span><span>${(+d.juros||0).toLocaleString("pt-BR")}% a.m.</span></div></button>`;
   return `<section class="card"><h2>Metas de economia <button class="btn small" id="add-meta" ${S.readOnly?"hidden":""}>+ Nova meta</button></h2>
       ${metas.length?`<div class="goals">${metas.map(goalCard).join("")}</div>`:`<div class="empty"><b>Nenhuma meta ainda</b>Reserva de emergência, viagem, casa nova: crie a primeira meta do casal.</div>`}
@@ -877,13 +888,16 @@ function metaModal(id){
 }
 
 function dividaModal(id){
-  const ex = id? S.dividas.find(m=>m.id===id):null; const d = ex || {nome:"",saldo:"",parcela:"",vencimento:"",juros:"",prioridade:"Média",obs:""}; const ro=S.readOnly;
+  const ex = id? S.dividas.find(m=>m.id===id):null; const d = ex || {nome:"",saldo:"",parcela:"",totalParcelas:"",parcelasPagas:"",vencimento:"",juros:"",prioridade:"Média",obs:""}; const ro=S.readOnly;
   const n = v => v!==""&&v!=null ? String(v).replace(".",",") : "";
   openModal(`<h2>${ex?"Editar dívida":"Nova dívida"}<button class="x" data-close aria-label="Fechar">×</button></h2>
     <form class="form" id="df" novalidate>
       <div class="field full"><label for="d-nome">Dívida / credor</label><input id="d-nome" maxlength="60" placeholder="Ex.: Empréstimo banco" value="${esc(d.nome)}"></div>
       <div class="field"><label for="d-saldo">Saldo atual (R$)</label><input id="d-saldo" inputmode="decimal" value="${n(d.saldo)}"></div>
       <div class="field"><label for="d-parc">Parcela mensal (R$)</label><input id="d-parc" inputmode="decimal" value="${n(d.parcela)}"></div>
+      <div class="field"><label for="d-total">Total de parcelas</label><input id="d-total" inputmode="numeric" maxlength="3" placeholder="Ex.: 12" value="${d.totalParcelas?esc(d.totalParcelas):""}"></div>
+      <div class="field"><label for="d-pagas">Parcelas já pagas</label><div style="display:flex;gap:8px;align-items:flex-end"><input id="d-pagas" inputmode="numeric" maxlength="3" placeholder="0" value="${d.parcelasPagas!=null&&d.parcelasPagas!==""?esc(d.parcelasPagas):""}" style="flex:1">${ro?"":`<button type="button" class="btn ghost small" id="d-mais" style="margin-bottom:2px">+1 paga</button>`}</div></div>
+      <div class="field full" id="d-resumo-wrap" hidden><div class="help" id="d-resumo"></div></div>
       <div class="field"><label for="d-venc">Dia do vencimento</label><input id="d-venc" inputmode="numeric" maxlength="2" value="${esc(d.vencimento)}"></div>
       <div class="field"><label for="d-juros">Juros (% ao mês)</label><input id="d-juros" inputmode="decimal" value="${n(d.juros)}"></div>
       <div class="field full"><span class="lbl">Prioridade</span><div class="seg">${PRIOS.map((p,i)=>`<input type="radio" name="prio" id="p-${i}" value="${p}" ${d.prioridade===p?"checked":""}><label for="p-${i}">${p}</label>`).join("")}</div></div>
@@ -893,10 +907,20 @@ function dividaModal(id){
     <div class="sheet-actions"><div>${ex&&!ro?`<button class="btn danger" id="d-del">Excluir</button>`:""}</div>
       <div class="row-actions"><button class="btn" data-close>Cancelar</button>${ro?"":`<button class="btn primary" id="d-save">Salvar</button>`}</div></div>`, ov=>{
     if(ro) ov.querySelectorAll("input").forEach(i=>i.disabled=true);
-    const save=async()=>{ const nm=$("#d-nome").value.trim(), saldo=parseMoney($("#d-saldo").value);
-      if(!nm||!(saldo>=0)){ const e=$("#d-err"); e.hidden=false; e.textContent="Informe o credor e o saldo atual."; return; }
+    const int = v => { const x=parseInt(String(v).replace(/\D/g,""),10); return isNaN(x)?null:x; };
+    const resumo=()=>{ const t=int($("#d-total").value), pg=int($("#d-pagas").value)||0, pc=parseMoney($("#d-parc").value); const w=$("#d-resumo-wrap");
+      if(!t){ w.hidden=true; return; } w.hidden=false; const f=Math.max(t-pg,0);
+      $("#d-resumo").textContent = pg>t ? `As parcelas pagas (${pg}) passam do total (${t}). Confira os números.` : f===0 ? `Todas as ${t} parcelas foram pagas. Dívida quitada!` : `Faltam ${f} de ${t} parcelas${pc>0?`, cerca de ${fmt(f*pc)} no total`:""}. Quitação prevista: ${monthName(addMonths(monthKey(todayISO()),f-1),{month:"long",year:"numeric"})}.`; };
+    ["d-total","d-pagas","d-parc"].forEach(i=>$("#"+i).addEventListener("input",resumo)); resumo();
+    $("#d-mais")?.addEventListener("click",()=>{ const t=int($("#d-total").value), pg=int($("#d-pagas").value)||0; if(t && pg>=t) return; $("#d-pagas").value=pg+1;
+      const pc=parseMoney($("#d-parc").value), sd=parseMoney($("#d-saldo").value); if(pc>0 && sd>0) $("#d-saldo").value=String(Math.max(0,Math.round((sd-pc)*100)/100)).replace(".",","); resumo(); });
+    const save=async()=>{ const nm=$("#d-nome").value.trim(); let saldo=parseMoney($("#d-saldo").value); const e=$("#d-err");
+      const t=int($("#d-total").value), pg=int($("#d-pagas").value)||0, pc=parseMoney($("#d-parc").value);
+      if(isNaN(saldo) && t && pc>0) saldo=Math.max(t-pg,0)*pc;
+      if(!nm||!(saldo>=0)){ e.hidden=false; e.textContent="Informe o credor e o saldo atual (ou o total de parcelas e o valor da parcela)."; return; }
+      if(t && pg>t){ e.hidden=false; e.textContent="As parcelas pagas não podem passar do total de parcelas."; return; }
       const z=v=>{ const x=parseMoney(v); return isNaN(x)?0:Math.round(x*100)/100; };
-      try{ await put("dividas", ex?ex.id:newId(), {nome:nm, saldo:z($("#d-saldo").value), parcela:z($("#d-parc").value), vencimento:$("#d-venc").value.replace(/\D/g,""), juros:z($("#d-juros").value), prioridade:$("#df [name=prio]:checked")?.value||"Média", obs:$("#d-obs").value.trim()}); closeModal(); toast("Dívida salva"); }catch(e){} };
+      try{ await put("dividas", ex?ex.id:newId(), {nome:nm, saldo:Math.round(saldo*100)/100, parcela:z($("#d-parc").value), totalParcelas:t||0, parcelasPagas:t?pg:0, vencimento:$("#d-venc").value.replace(/\D/g,""), juros:z($("#d-juros").value), prioridade:$("#df [name=prio]:checked")?.value||"Média", obs:$("#d-obs").value.trim()}); closeModal(); toast("Dívida salva"); }catch(e){} };
     $("#d-save")?.addEventListener("click",save); $("#df").addEventListener("submit",e=>{e.preventDefault();save();});
     const b=$("#d-del"); b && armDelete(b, async()=>{ try{ await del("dividas",ex.id); closeModal(); toast("Dívida excluída"); }catch(e){} });
   });
