@@ -576,10 +576,12 @@ const S = {
 const nome = k => k==="a" ? (S.config.nomeA||"Pessoa 1") : (S.config.nomeB||"Pessoa 2");
 const meuUid = () => (window.FB && window.FB.auth.currentUser && window.FB.auth.currentUser.uid) || "";
 const euSou = () => ((S.config.contas||{})[meuUid()]) || "";
-const CORES=[["verde","Verde limão","#d5ff56"],["azul","Azul","#8ecbff"],["menta","Menta","#6ff0c2"],["lilas","Lilás","#c3a6ff"],["rosa","Rosa","#ff9fcf"],["coral","Coral","#ff8f6b"],["amarelo","Amarelo","#ffd84d"]];
+const CORES=[["verde","Verde limão","#d5ff56","#86b300"],["azul","Azul","#8ecbff","#3d93e6"],["menta","Menta","#6ff0c2","#14a874"],["lilas","Lilás","#c3a6ff","#7b55d9"],["rosa","Rosa","#ff9fcf","#d93d8a"],["coral","Coral","#ff8f6b","#e0592f"],["amarelo","Amarelo","#ffd84d","#c79500"]];
+function corDe(k){ if(typeof temaPreview!=="undefined" && temaPreview && k===euSou()) return temaPreview.cor; const contas=S.config.contas||{}, perfis=S.config.perfis||{}; const uid=Object.keys(contas).find(u=>contas[u]===k); return (uid && perfis[uid] && perfis[uid].cor) || (k==="b"?"azul":"verde"); }
+function pintarPessoas(modo){ const r=document.documentElement.style; for(const k of ["a","b"]){ const c=CORES.find(x=>x[0]===corDe(k))||CORES[0]; r.setProperty("--"+k, modo==="claro"?c[3]:c[2]); } }
 const meuTema = () => { const pf=(S.config.perfis||{})[meuUid()]||{}; return {cor: pf.cor || (euSou()==="b"?"azul":"verde"), modo: pf.modo || "escuro"}; };
 let temaPreview=null;
-function pintarTema(t){ const r=document.documentElement; r.dataset.cor=t.cor; r.dataset.modo=t.modo; const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = t.modo==="claro" ? "#f2f2ee" : "#090909"; }
+function pintarTema(t){ const r=document.documentElement; r.dataset.cor=t.cor; r.dataset.modo=t.modo; pintarPessoas(t.modo); const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = t.modo==="claro" ? "#f2f2ee" : "#090909"; }
 function aplicarCor(){ if(temaPreview){ pintarTema(temaPreview); return; } if(S.mode!=="db") return; const t=meuTema(); pintarTema(t); try{localStorage.setItem("financas-tema",JSON.stringify(t))}catch(e){}
   const k=euSou(), b=document.getElementById("me-av"); if(b){ b.textContent = k ? initial(nome(k)) : "?"; b.className = "me-av " + (k||""); document.getElementById("me-nome").textContent = k ? nome(k) : "Perfil"; } }
 function definirEuSou(k){ const uid=meuUid(); if(!uid) return; const cfg={...S.config, contas:{...(S.config.contas||{}), [uid]:k}}; S.config=cfg; aplicarCor(); render(); put("config","geral",cfg).then(()=>toast(`Pronto: este acesso é de ${nome(k)}`)).catch(()=>{}); }
