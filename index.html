@@ -277,6 +277,10 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .contas-tabs .pillf .count{margin-left:6px;opacity:.55;font-family:var(--mono);font-size:10.5px}
 .contas-tabs .pillf .dot{width:7px;height:7px;vertical-align:1px}
 .contas-hint{margin:0;color:var(--faint);font-size:13px}
+.cat-link{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
+.cat-link:hover{text-decoration-color:var(--accent)}
+.cat-n{display:block;font:400 11px var(--f-body);color:var(--faint);margin-top:2px}
+.bud .fill.free{background:var(--outline);opacity:.5}
 .who-chip{display:inline-flex;align-items:center;gap:6px;font:500 11px/1.4 var(--f-body);color:var(--soft);background:rgba(var(--fg-rgb),.05);border-radius:99px;padding:3px 9px 3px 7px;white-space:nowrap}
 .who-chip .dot{width:7px;height:7px;box-shadow:0 0 0 1.5px var(--panel2)}
 .av.c{background:rgba(var(--fg-rgb),.06);color:var(--soft);font-size:10.5px}
@@ -685,6 +689,9 @@ function pickMonth(){
 }
 
 // ---------- Cálculos ----------
+const semAcento = t => String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
+const CAT_CANON = Object.fromEntries([...CAT_DESP,...CAT_REC].map(c=>[semAcento(c),c]));
+const normCat = c => CAT_CANON[semAcento(c)] || (String(c||"").trim() || "Sem categoria");
 const CUR = () => monthKey(todayISO());
 const mdiff = (a,b) => { const [y1,m1]=a.split("-").map(Number),[y2,m2]=b.split("-").map(Number); return (y2-y1)*12+(m2-m1); };
 const quemChip = q => q==="casal" ? `<span class="who-chip"><span class="dot a"></span><span class="dot b" style="margin-left:-6px"></span>Os dois</span>` : `<span class="who-chip"><span class="dot ${q==="b"?"b":"a"}"></span>${esc(nome(q==="b"?"b":"a"))}</span>`;
@@ -722,7 +729,7 @@ function summary(mk=S.month){
   const pelo={a:0,b:0}, sal={a:0,b:0}, extra={a:0,b:0}, fix={a:0,b:0,casal:0}, parc={a:0,b:0,casal:0}, indMan={a:0,b:0};
   for(const l of tx){ const v=Number(l.valor)||0; const q=l.quem==="b"?"b":l.quem==="casal"?"casal":"a";
     if(l.tipo==="Receita"){ const p=q==="casal"?"a":q; rec+=v; rA[p]+=v; if(l.auto==="salario") sal[p]+=v; else extra[p]+=v; }
-    else { desp+=v; if(l.essencial) ess+=v; cat[l.categoria]=(cat[l.categoria]||0)+v;
+    else { desp+=v; if(l.essencial) ess+=v; { const ck=normCat(l.categoria); cat[ck]=(cat[ck]||0)+v; }
       if(l.auto){ (l.auto==="fixa"?fix:parc)[q]+=v; if(q!=="casal") ind[q]+=v; }
       else if(l.divisao==="individual"){ ind[q]+=v; indMan[q]+=v; }
       else if(l.divisao==="outro"){ const o=q==="a"?"b":"a"; pelo[q]+=v; ind[o]+=v; indMan[o]+=v; }
@@ -771,7 +778,7 @@ function txRow(l){
   return `<button class="tx" data-edit="${esc(l.id)}">
     ${av}
     <span style="min-width:0"><div class="t">${esc(l.descricao||l.categoria)}</div>
-      <div class="m"><span>${esc(l.categoria)}</span>${l.auto?"":`·<span>${esc(l.pagamento||"")}</span>`}${autoTag}${l.auto?"":!rec ? (l.divisao==="individual"?`<span class="tag">Individual</span>`:l.divisao==="outro"?`<span class="tag outro">É de ${esc(nome(l.quem==="b"?"a":"b"))}</span>`:`<span class="tag casal">Do casal</span>`):""}${l.essencial&&!rec&&!l.auto?`<span class="tag">Essencial</span>`:""}</div></span>
+      <div class="m"><span>${l.categoria?esc(l.categoria):`<b class="tag outro">Sem categoria · toque para corrigir</b>`}</span>${l.auto?"":`·<span>${esc(l.pagamento||"")}</span>`}${autoTag}${l.auto?"":!rec ? (l.divisao==="individual"?`<span class="tag">Individual</span>`:l.divisao==="outro"?`<span class="tag outro">É de ${esc(nome(l.quem==="b"?"a":"b"))}</span>`:`<span class="tag casal">Do casal</span>`):""}${l.essencial&&!rec&&!l.auto?`<span class="tag">Essencial</span>`:""}</div></span>
     <span class="val ${rec?"pos":""}">${rec?"+ ":"− "}${fmt(l.valor)}</span>
   </button>`;
 }
@@ -830,7 +837,7 @@ function vPainel(){
 function vLanc(){
   const f=S.filt; const q=f.q.trim().toLowerCase();
   const all = monthTx();
-  const list = all.filter(l=>(!f.tipo||l.tipo===f.tipo)&&(!f.quem||l.quem===f.quem)&&(!f.cat||l.categoria===f.cat)&&(!q||`${l.descricao} ${l.categoria} ${l.obs||""}`.toLowerCase().includes(q)))
+  const list = all.filter(l=>(!f.tipo||l.tipo===f.tipo)&&(!f.quem||l.quem===f.quem)&&(!f.cat||normCat(l.categoria)===f.cat)&&(!q||`${l.descricao} ${l.categoria} ${l.obs||""}`.toLowerCase().includes(q)))
     .sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.criadoEm||0)-(a.criadoEm||0));
   let rec=0,desp=0; list.forEach(l=>l.tipo==="Receita"?rec+=+l.valor||0:desp+=+l.valor||0);
   const groups=[]; let cur=null; list.forEach(l=>{ if(!cur||cur.d!==l.data){cur={d:l.data,items:[]};groups.push(cur);} cur.items.push(l); });
@@ -843,7 +850,7 @@ function vLanc(){
       ${[["","Tudo"],["Receita","Receitas"],["Despesa","Despesas"]].map(([v,t])=>`<button class="pillf ${f.tipo===v?"on":""}" data-ft="${v}" aria-pressed="${f.tipo===v}">${t}</button>`).join("")}
       <span class="fsep" aria-hidden="true"></span>
       ${[["","Os dois"],["a",nome("a")],["b",nome("b")]].map(([v,t])=>`<button class="pillf ${f.quem===v?"on":""}" data-fq="${v}" aria-pressed="${f.quem===v}">${esc(t)}</button>`).join("")}
-      <select id="f-cat" aria-label="Categoria"><option value="">Todas as categorias</option>${cats.map(c=>`<option ${f.cat===c?"selected":""}>${esc(c)}</option>`).join("")}</select>
+      <select id="fl-cat" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option>${cats.map(c=>`<option ${f.cat===c?"selected":""}>${esc(c)}</option>`).join("")}</select>
     </div>
     <div class="sum-strip"><span class="mono">Receitas<b class="pos">${fmt(rec)}</b></span><span class="mono">Despesas<b>${fmt(desp)}</b></span><span class="mono">Lançamentos<b>${list.length} de ${all.length}</b></span></div>
     ${groups.length? `<div class="tx-list">${groups.map(g=>`<div class="tx-day">${esc(dayLabel(g.d))}</div>${g.items.map(txRow).join("")}`).join("")}</div>`
@@ -853,17 +860,21 @@ function vLanc(){
 
 function vOrc(){
   const s=summary(); let tp=0,tr=0;
-  const rows = CAT_DESP.map(c=>{ const p=Number(S.limites[c])||0, r=s.cat[c]||0; tp+=p; tr+=r;
-    const pct = p? r/p : 0; const cls = !p ? "none" : pct>1 ? "over" : pct>=.8 ? "warn":"ok";
+  const extras = Object.keys(s.cat).filter(c=>!CAT_DESP.includes(c));
+  const lista = [...CAT_DESP, ...extras];
+  const qtd = c => s.tx.filter(l=>l.tipo!=="Receita" && normCat(l.categoria)===c).length;
+  const rows = lista.map((c,idx)=>{ const p=Number(S.limites[c])||0, r=s.cat[c]||0; tp+=p; tr+=r;
+    const pct = p? r/p : (r>0?1:0); const cls = !p ? (r>0?"free":"none") : pct>1 ? "over" : pct>=.8 ? "warn":"ok";
     const label = !p ? (r?"Sem limite":"—") : pct>1 ? "Estourou" : pct>=.8 ? "Atenção" : "Dentro";
-    return `<div>${esc(c)}</div>
-      <input id="bud-${CAT_DESP.indexOf(c)}" data-cat="${esc(c)}" inputmode="decimal" value="${p?String(p).replace(".",","):""}" placeholder="0" aria-label="Planejado para ${esc(c)}" ${S.readOnly?"disabled":""}>
+    const n = qtd(c);
+    return `<div><button class="cat-link" data-goto-cat="${esc(c)}" title="Ver os lançamentos de ${esc(c)}">${esc(c)}</button>${n?`<span class="cat-n">${n} ${n===1?"lançamento":"lançamentos"}</span>`:""}</div>
+      <input id="bud-${idx}" data-cat="${esc(c)}" inputmode="decimal" value="${p?String(p).replace(".",","):""}" placeholder="Sem limite" aria-label="Planejado para ${esc(c)}" ${S.readOnly?"disabled":""}>
       <div class="prog"><span>${fmt(r)}${p?` <span style="color:var(--muted)">· resta ${fmt(p-r)}</span>`:""}</span><div class="track"><div class="fill ${cls}" style="width:${Math.min(100,pct*100).toFixed(1)}%"></div></div></div>
-      <span class="status ${cls}">${label}</span>`; }).join("");
+      <span class="status ${cls==="free"?"none":cls}">${label}</span>`; }).join("");
   const tpct = tp? tr/tp:0;
   return `<section class="card">
-    <h2>Limites por categoria</h2>
-    <p style="margin:0 0 14px;color:var(--muted);font-size:14px">Defina quanto pretendem gastar por categoria. O limite vale para todos os meses; o realizado vem dos lançamentos do mês escolhido.</p>
+    <h2>Limites por categoria <span class="sub">Realizado em ${esc(monthName(S.month))}</span></h2>
+    <p style="margin:0 0 14px;color:var(--muted);font-size:14px">Defina quanto pretendem gastar por categoria. O limite vale para todos os meses; o realizado soma todas as despesas do mês escolhido no topo, inclusive contas fixas e parcelas. Toque numa categoria para ver os lançamentos dela.</p>
     <div class="bud">
       <span class="h">Categoria</span><span class="h" style="text-align:right">Planejado</span><span class="h">Realizado</span><span class="h">Situação</span>
       ${rows}
@@ -1027,7 +1038,7 @@ function txModal(id){
   const ex = id ? S.lanc.find(l=>l.id===id) : null;
   const d = ex || {tipo:"Despesa",data: monthKey(todayISO())===S.month ? todayISO() : S.month+"-01", categoria:"Alimentação", pagamento:"Pix", quem:"a", divisao:"individual", essencial:true, valor:"", descricao:"", obs:""};
   const ro = S.readOnly;
-  const catOpts = t => (t==="Receita"?CAT_REC:CAT_DESP).map(c=>`<option ${d.categoria===c?"selected":""}>${esc(c)}</option>`).join("");
+  const catOpts = t => (ex && !ex.categoria ? `<option value="" selected disabled>Escolha a categoria</option>` : "") + (t==="Receita"?CAT_REC:CAT_DESP).map(c=>`<option ${d.categoria===c?"selected":""}>${esc(c)}</option>`).join("");
   openModal(`<h2>${ex?"Editar lançamento":"Novo lançamento"}<button class="x" data-close aria-label="Fechar">×</button></h2>
     <form class="form" id="txf" novalidate>
       <div class="field full"><div class="seg">
@@ -1064,14 +1075,15 @@ function txModal(id){
       $("#d-i-l").textContent=`Só de ${nome(pq)}`; $("#d-o-l").textContent=`É de ${nome(oq)}`;
       $("#div-help").textContent = dv==="individual" ? `Gasto só de ${nome(pq)}. Não entra no acerto.` : dv==="casal" ? `Dividido entre vocês ${S.config.divisao==="proporcional"?"pela renda":"meio a meio"} no acerto do mês.` : `${nome(pq)} pagou algo que é de ${nome(oq)}. ${nome(oq)} devolve o valor inteiro no acerto do mês.`;
       $("#card-help").hidden = !(t==="Despesa" && $("#f-pag").value==="Cartão de crédito"); };
-    form.querySelectorAll("[name=tipo]").forEach(r=>r.addEventListener("change",()=>{ const t=form.querySelector("[name=tipo]:checked").value; const cur=$("#f-cat").value; $("#f-cat").innerHTML=(t==="Receita"?CAT_REC:CAT_DESP).map(c=>`<option ${cur===c?"selected":""}>${esc(c)}</option>`).join(""); sync(); }));
+    form.querySelectorAll("[name=tipo]").forEach(r=>r.addEventListener("change",()=>{ const t=form.querySelector("[name=tipo]:checked").value; const cur=form.querySelector("#f-cat").value; form.querySelector("#f-cat").innerHTML=(t==="Receita"?CAT_REC:CAT_DESP).map(c=>`<option ${cur===c?"selected":""}>${esc(c)}</option>`).join(""); sync(); }));
     $("#f-pag").addEventListener("change",sync); form.querySelectorAll("[name=quem],[name=div]").forEach(r=>r.addEventListener("change",sync)); sync();
     if(ro) form.querySelectorAll("input,select").forEach(i=>i.disabled=true);
     const save=async()=>{ const v=parseMoney($("#f-valor").value); const err=$("#f-err");
       if(!(v>0)){ err.hidden=false; err.textContent="Informe um valor maior que zero, por exemplo 49,90."; $("#f-valor").focus(); return; }
       if(!$("#f-data").value){ err.hidden=false; err.textContent="Escolha a data do lançamento."; return; }
+      if(!form.querySelector("#f-cat").value){ err.hidden=false; err.textContent="Escolha a categoria."; return; }
       const tipo=form.querySelector("[name=tipo]:checked").value;
-      const doc={ data:$("#f-data").value, tipo, categoria:$("#f-cat").value, descricao:$("#f-desc").value.trim()||$("#f-cat").value, pagamento:$("#f-pag").value,
+      const doc={ data:$("#f-data").value, tipo, categoria:form.querySelector("#f-cat").value, descricao:$("#f-desc").value.trim()||form.querySelector("#f-cat").value, pagamento:$("#f-pag").value,
         valor:Math.round(v*100)/100, quem:form.querySelector("[name=quem]:checked").value,
         divisao: tipo==="Receita"?"individual":form.querySelector("[name=div]:checked").value,
         essencial: tipo==="Receita"?false:form.querySelector("[name=ess]:checked").value==="1",
@@ -1255,6 +1267,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape" && $("#ov")) closeM
 $("#main").addEventListener("click",e=>{
   if(e.target.closest("[data-logout-inline]")){ window.FB.signOut(window.FB.auth); return; }
   if(e.target.closest("[data-abrir-perfil]")){ perfilModal(); return; }
+  const gc=e.target.closest("[data-goto-cat]"); if(gc){ S.filt={tipo:"",quem:"",cat:gc.dataset.gotoCat,q:""}; location.hash="#lancamentos"; return; }
   const ca=e.target.closest("[data-ca]"); if(ca){ S.contasAba=ca.dataset.ca; render(); return; }
   const cq=e.target.closest("[data-cq]"); if(cq){ S.contasQuem=cq.dataset.cq; render(); return; }
   const eu=e.target.closest("[data-eusou]"); if(eu){ definirEuSou(eu.dataset.eusou); return; }
@@ -1278,7 +1291,7 @@ $("#main").addEventListener("click",e=>{
 });
 $("#main").addEventListener("input",e=>{
   if(/^s-q[12][AB]$/.test(e.target.id)){ salTotais(); return; }
-  const id=e.target.id; if(["f-q","f-tipo","f-quem","f-cat"].includes(id)){ S.filt[id.slice(2)]=e.target.value; render(); }
+  const id=e.target.id; if(id==="f-q"){ S.filt.q=e.target.value; render(); } else if(id==="fl-cat"){ S.filt.cat=e.target.value; render(); }
 });
 $("#main").addEventListener("change",e=>{
   const fr=e.target.name && e.target.name.match(/^s-freq([AB])$/); if(fr){ const K=fr[1], v=e.target.value==="quinzenal"?"q":"m"; document.querySelectorAll(`[data-freq^="${K}-"]`).forEach(el=>el.hidden=el.dataset.freq!==`${K}-${v}`); salTotais(); return; }
