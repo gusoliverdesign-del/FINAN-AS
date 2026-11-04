@@ -620,7 +620,14 @@ const fixaAtiva = (d,mk) => mk>=(d.inicio||"0000-00") && (!d.fim || mk<=d.fim);
 const salAtivo = mk => mk>=(S.config.salInicio||"0000-00");
 function autoTx(mk){
   const out=[]; const c=S.config;
-  if(salAtivo(mk)) for(const k of ["a","b"]){ const K=k.toUpperCase(), v=+c["salario"+K]||0; if(v>0) out.push({id:`auto:sal:${k}`,auto:"salario",data:`${mk}-${pad(Math.min(28,Math.max(1,+c["diaSal"+K]||5)))}`,tipo:"Receita",categoria:"Salário",descricao:`Salário de ${nome(k)}`,pagamento:"Automático",valor:v,quem:k,divisao:"individual"}); }
+  const dia = x => pad(Math.min(28,Math.max(1,+x||5)));
+  if(salAtivo(mk)) for(const k of ["a","b"]){ const K=k.toUpperCase(); const base={tipo:"Receita",categoria:"Salário",pagamento:"Automático",quem:k,divisao:"individual",auto:"salario"};
+    if(c["freq"+K]==="quinzenal"){
+      const q1=+c["q1"+K]||0, q2=+c["q2"+K]||0;
+      if(q1>0) out.push({...base,id:`auto:sal:${k}:1`,data:`${mk}-${dia(c["diaQ1"+K]||5)}`,descricao:`Salário de ${nome(k)} · 1ª quinzena`,valor:q1});
+      if(q2>0) out.push({...base,id:`auto:sal:${k}:2`,data:`${mk}-${dia(c["diaQ2"+K]||20)}`,descricao:`Salário de ${nome(k)} · 2ª quinzena`,valor:q2});
+    } else { const v=+c["salario"+K]||0; if(v>0) out.push({...base,id:`auto:sal:${k}`,data:`${mk}-${dia(c["diaSal"+K])}`,descricao:`Salário de ${nome(k)}`,valor:v}); }
+  }
   for(const d of S.dividas){ const tp=divTipo(d), v=+d.parcela||0; if(!(v>0)) continue;
     const data=`${mk}-${pad(Math.min(28,Math.max(1,+d.vencimento||1)))}`, q=d.quem||"casal", divisao=q==="casal"?"casal":"individual";
     if(tp==="fixa" && fixaAtiva(d,mk)) out.push({id:`auto:div:${d.id}`,auto:"fixa",src:d.id,data,tipo:"Despesa",categoria:d.categoria||"Contas",descricao:d.nome,pagamento:"Automático",valor:v,quem:q,divisao,essencial:true});
@@ -670,6 +677,7 @@ function render(){
   const TIT={painel:"Painel",lancamentos:"Lançamentos",orcamento:"Orçamento",metas:"Contas, dívidas e metas",ajustes:"Ajustes"};
   const DESC={painel:"Resumo do mês, o acerto entre vocês e para onde foi o dinheiro.",lancamentos:"Todas as receitas e despesas do mês. Toque em um lançamento para editar.",orcamento:"Quanto vocês planejam gastar por categoria e quanto já foi.",metas:"Contas que se repetem todo mês, parcelas que avançam sozinhas e o que vocês estão juntando.",ajustes:"Nomes, salários, forma de dividir os gastos e dicas de uso."};
   $("#main").innerHTML = `<header class="page-head"><div><span class="eyebrow">${esc(monthName(S.month))} · ${esc(nome("a"))} & ${esc(nome("b"))}</span><h1>${TIT[v]}</h1><p>${DESC[v]}</p></div></header>` + notes + body;
+  if(v==="ajustes") salTotais();
   if(keepId){ const el=document.getElementById(keepId); if(el){ el.focus(); try{ if(selStart!=null) el.setSelectionRange(selStart,selStart);}catch(e){} } }
 }
 
@@ -841,20 +849,34 @@ function salarioCard(s){
 
 function salarioFields(c){
   const ro=S.readOnly?"disabled":"";
-  const v = x => x?String(x).replace(".",","):"";
+  const v = x => +x?String(x).replace(".",","):"";
+  const bloco = k => { const K=k.toUpperCase(), q=c["freq"+K]==="quinzenal";
+    return `<div class="field full sal-person"><span class="lbl"><span class="dot ${k}"></span> ${esc(nome(k))} recebe</span>
+      <div class="seg"><input type="radio" name="s-freq${K}" id="s-freq${K}-m" value="mensal" ${!q?"checked":""} ${ro}><label for="s-freq${K}-m">Uma vez por mês</label>
+      <input type="radio" name="s-freq${K}" id="s-freq${K}-q" value="quinzenal" ${q?"checked":""} ${ro}><label for="s-freq${K}-q">Por quinzena</label></div></div>
+      <div class="field" data-freq="${K}-m" ${q?"hidden":""}><label for="s-sal${K}">Salário mensal (R$)</label><input id="s-sal${K}" inputmode="decimal" placeholder="0,00" value="${v(c["salario"+K])}" ${ro}></div>
+      <div class="field" data-freq="${K}-m" ${q?"hidden":""}><label for="s-dia${K}">Dia do pagamento</label><input id="s-dia${K}" inputmode="numeric" maxlength="2" placeholder="5" value="${esc(c["diaSal"+K]||"")}" ${ro}></div>
+      <div class="field" data-freq="${K}-q" ${q?"":"hidden"}><label for="s-q1${K}">Primeira quinzena (R$)</label><input id="s-q1${K}" inputmode="decimal" placeholder="0,00" value="${v(c["q1"+K])}" ${ro}></div>
+      <div class="field" data-freq="${K}-q" ${q?"":"hidden"}><label for="s-dq1${K}">Dia da primeira</label><input id="s-dq1${K}" inputmode="numeric" maxlength="2" placeholder="5" value="${esc(c["diaQ1"+K]||"")}" ${ro}></div>
+      <div class="field" data-freq="${K}-q" ${q?"":"hidden"}><label for="s-q2${K}">Segunda quinzena (R$)</label><input id="s-q2${K}" inputmode="decimal" placeholder="0,00" value="${v(c["q2"+K])}" ${ro}></div>
+      <div class="field" data-freq="${K}-q" ${q?"":"hidden"}><label for="s-dq2${K}">Dia da segunda</label><input id="s-dq2${K}" inputmode="numeric" maxlength="2" placeholder="20" value="${esc(c["diaQ2"+K]||"")}" ${ro}></div>
+      <div class="field full" data-freq="${K}-q" ${q?"":"hidden"}><div class="help" id="s-tot${K}"></div></div>`; };
   return `<section class="card settings">
     <h2>Quanto vocês recebem</h2>
     <div class="form">
-      <div class="field"><label for="s-salA"><span class="dot a"></span> Salário de ${esc(nome("a"))} (R$)</label><input id="s-salA" inputmode="decimal" placeholder="0,00" value="${v(c.salarioA)}" ${ro}></div>
-      <div class="field"><label for="s-diaA">Dia do pagamento</label><input id="s-diaA" inputmode="numeric" maxlength="2" placeholder="5" value="${esc(c.diaSalA||"")}" ${ro}></div>
-      <div class="field"><label for="s-salB"><span class="dot b"></span> Salário de ${esc(nome("b"))} (R$)</label><input id="s-salB" inputmode="decimal" placeholder="0,00" value="${v(c.salarioB)}" ${ro}></div>
-      <div class="field"><label for="s-diaB">Dia do pagamento</label><input id="s-diaB" inputmode="numeric" maxlength="2" placeholder="5" value="${esc(c.diaSalB||"")}" ${ro}></div>
-      <div class="field full"><div class="help">O salário entra sozinho todo mês em Lançamentos, a partir de ${esc(monthName(c.salInicio||CUR()))}. Não precisa lançar de novo. Bônus, freelas e outras entradas vocês lançam normalmente como Receita.</div></div>
+      ${bloco("a")}
+      <div class="full side-sep" style="margin:0 0 22px"></div>
+      ${bloco("b")}
+      <div class="field full"><div class="help">O salário entra sozinho todo mês em Lançamentos, a partir de ${esc(monthName(c.salInicio||CUR()))}. Por quinzena, entram dois lançamentos no mês, um em cada data. Bônus, freelas e outras entradas vocês lançam normalmente como Receita.</div></div>
     </div>
     <div class="row-actions" style="justify-content:flex-start"><button class="btn primary" id="s-save2" ${S.readOnly?"hidden":""}>Salvar salários</button></div>
   </section>`;
 }
-
+function salTotais(){
+  for(const K of ["A","B"]){ const el=document.getElementById("s-tot"+K); if(!el) continue;
+    const a=parseMoney(document.getElementById("s-q1"+K).value)||0, b=parseMoney(document.getElementById("s-q2"+K).value)||0;
+    el.textContent = a||b ? `Total no mês: ${fmt(a+b)}` : "Preencha quanto recebe em cada quinzena. Se for o mesmo valor, repita nos dois campos."; }
+}
 
 function vAjustes(){
   const c=S.config;
@@ -1072,16 +1094,21 @@ $("#main").addEventListener("click",e=>{
   else if(t.id==="add-meta") metaModal();
   else if(t.id==="add-divida") dividaModal(null,"parcelada");
   else if(t.id==="add-fixa") dividaModal(null,"fixa");
-  else if(t.id==="s-save2"){ const m=v=>{ const x=parseMoney(v); return x>0?Math.round(x*100)/100:0; }, dd=v=>{ const x=parseInt(String(v).replace(/\D/g,""),10); return x>=1&&x<=31?x:""; };
-    const cfg={...S.config, salarioA:m($("#s-salA").value), salarioB:m($("#s-salB").value), diaSalA:dd($("#s-diaA").value), diaSalB:dd($("#s-diaB").value), salInicio:S.config.salInicio||CUR()};
+  else if(t.id==="s-save2"){ const m=v=>{ const x=parseMoney(v); return x>0?Math.round(x*100)/100:0; }, dd=v=>{ const x=parseInt(String(v).replace(/\D/g,""),10); return x>=1&&x<=31?x:""; }, g=id=>document.getElementById(id).value;
+    const cfg={...S.config, salInicio:S.config.salInicio||CUR()};
+    for(const K of ["A","B"]){ const f=document.querySelector(`[name=s-freq${K}]:checked`).value; cfg["freq"+K]=f;
+      cfg["salario"+K]=m(g("s-sal"+K)); cfg["diaSal"+K]=dd(g("s-dia"+K));
+      cfg["q1"+K]=m(g("s-q1"+K)); cfg["q2"+K]=m(g("s-q2"+K)); cfg["diaQ1"+K]=dd(g("s-dq1"+K)); cfg["diaQ2"+K]=dd(g("s-dq2"+K)); }
     put("config","geral",cfg).then(()=>toast("Salários salvos")).catch(()=>{}); }
   else if(t.id==="s-save"){ const cfg={...S.config, nomeA:$("#s-a").value.trim()||"Pessoa 1", nomeB:$("#s-b").value.trim()||"Pessoa 2", divisao:document.querySelector("[name=s-div]:checked").value};
     put("config","geral",cfg).then(()=>toast("Ajustes salvos")).catch(()=>{}); }
 });
 $("#main").addEventListener("input",e=>{
+  if(/^s-q[12][AB]$/.test(e.target.id)){ salTotais(); return; }
   const id=e.target.id; if(["f-q","f-tipo","f-quem","f-cat"].includes(id)){ S.filt[id.slice(2)]=e.target.value; render(); }
 });
 $("#main").addEventListener("change",e=>{
+  const fr=e.target.name && e.target.name.match(/^s-freq([AB])$/); if(fr){ const K=fr[1], v=e.target.value==="quinzenal"?"q":"m"; document.querySelectorAll(`[data-freq^="${K}-"]`).forEach(el=>el.hidden=el.dataset.freq!==`${K}-${v}`); salTotais(); return; }
   const c=e.target.dataset && e.target.dataset.cat; if(!c) return;
   const v=parseMoney(e.target.value); const lim={...S.limites}; if(isNaN(v)||v<=0) delete lim[c]; else lim[c]=Math.round(v*100)/100;
   S.limites=lim; render(); put("orcamento","plano",{limites:lim}).catch(()=>{});
