@@ -273,6 +273,10 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .quem-sou p{margin:8px 0 0;color:var(--soft)}
 .quem-sou .btn .dot,.settings .seg .btn .dot{box-shadow:0 0 0 1.5px rgba(0,0,0,.4)}
 .settings .seg .btn{flex:1;justify-content:center}
+.contas-tabs{display:grid;gap:10px;padding:0 2px 6px}
+.contas-tabs .pillf .count{margin-left:6px;opacity:.55;font-family:var(--mono);font-size:10.5px}
+.contas-tabs .pillf .dot{width:7px;height:7px;vertical-align:1px}
+.contas-hint{margin:0;color:var(--faint);font-size:13px}
 .who-chip{display:inline-flex;align-items:center;gap:6px;font:500 11px/1.4 var(--f-body);color:var(--soft);background:rgba(var(--fg-rgb),.05);border-radius:99px;padding:3px 9px 3px 7px;white-space:nowrap}
 .who-chip .dot{width:7px;height:7px;box-shadow:0 0 0 1.5px var(--panel2)}
 .av.c{background:rgba(var(--fg-rgb),.06);color:var(--soft);font-size:10.5px}
@@ -867,10 +871,14 @@ function vOrc(){
 }
 
 function vMetas(){
+  const aba = S.contasAba||"casal", pq = S.contasQuem===undefined ? (euSou()||"") : S.contasQuem;
+  const passa = x => { const q=x.quem||"casal"; return aba==="casal" ? q==="casal" : q!=="casal" && (!pq || q===pq); };
   const now = CUR();
-  const metas = [...S.metas].sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
-  const fixas = S.dividas.filter(d=>divTipo(d)==="fixa").sort((a,b)=>(+a.vencimento||99)-(+b.vencimento||99));
-  const divs = S.dividas.filter(d=>divTipo(d)!=="fixa").sort((a,b)=>(Number(b.juros)||0)-(Number(a.juros)||0));
+  const metas = S.metas.filter(m=>passa(m)).sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
+  const nCasal = [...S.dividas,...S.metas].filter(x=>(x.quem||"casal")==="casal").length, nInd = [...S.dividas,...S.metas].filter(x=>(x.quem||"casal")!=="casal").length;
+  const de = aba==="casal" ? " do casal" : pq ? ` de ${nome(pq)}` : " individuais";
+  const fixas = S.dividas.filter(d=>divTipo(d)==="fixa" && passa(d)).sort((a,b)=>(+a.vencimento||99)-(+b.vencimento||99));
+  const divs = S.dividas.filter(d=>divTipo(d)!=="fixa" && passa(d)).sort((a,b)=>(Number(b.juros)||0)-(Number(a.juros)||0));
   const fixAtivas = fixas.filter(d=>fixaAtiva(d,S.month));
   const totF = fixAtivas.reduce((t,d)=>t+(+d.parcela||0),0);
   const totD = divs.reduce((t,d)=>t+divSaldo(d),0);
@@ -899,15 +907,24 @@ function vMetas(){
       <div class="meta"><span>${+d.parcela>0?`Parcela ${fmt(d.parcela)}`:"Sem parcela fixa"}${d.vencimento?` · dia ${esc(d.vencimento)}`:""}</span><span><span class="prio ${esc(d.prioridade||"Média")}">${esc(d.prioridade||"Média")}</span></span></div>
       ${+d.juros>0?`<div class="meta"><span>Juros de ${(+d.juros).toLocaleString("pt-BR")}% ao mês</span></div>`:""}</button>`; };
   const add = (id,txt) => S.readOnly?"":`<button class="btn small" id="${id}">${txt}</button>`;
-  return `<section class="card"><h2>Contas fixas <span class="sub">${fixas.length?`${fmt(totF)} em ${esc(monthName(S.month,{month:"long"}))}`:"Contas que vocês pagam todo mês"}</span></h2>
+  const abas = `<div class="contas-tabs">
+      <div class="filters" role="tablist" aria-label="Tipo de conta" style="margin:0">
+        <button class="pillf ${aba==="casal"?"on":""}" data-ca="casal" role="tab" aria-selected="${aba==="casal"}">Contas do casal <span class="count">${nCasal}</span></button>
+        <button class="pillf ${aba==="ind"?"on":""}" data-ca="ind" role="tab" aria-selected="${aba==="ind"}">Contas individuais <span class="count">${nInd}</span></button>
+        ${aba==="ind"?`<span class="fsep" aria-hidden="true"></span>${[["","Os dois"],["a",nome("a")],["b",nome("b")]].map(([v,t])=>`<button class="pillf ${pq===v?"on":""}" data-cq="${v}">${v?`<span class="dot ${v}"></span> `:""}${esc(t)}</button>`).join("")}`:""}
+      </div>
+      <p class="contas-hint">${aba==="casal"?"Contas fixas, dívidas e metas que são dos dois. Elas são divididas entre vocês no salário do mês.":`Contas, dívidas e metas de cada um. Vocês dois enxergam as de todos, mas cada valor sai só do salário de quem é dono.`}</p>
+    </div>`;
+  return `${abas}
+    <section class="card"><h2>Contas fixas${esc(de)} <span class="sub">${fixas.length?`${fmt(totF)} em ${esc(monthName(S.month,{month:"long"}))}`:"Contas que vocês pagam todo mês"}</span></h2>
       <div class="row-actions" style="justify-content:flex-start;margin-bottom:12px">${add("add-fixa","+ Nova conta fixa")}</div>
       ${fixas.length?`<div class="goals">${fixas.map(fixaCard).join("")}</div><p style="color:var(--muted);font-size:13px;margin:12px 0 0">Elas entram sozinhas como despesa em todo mês ativo e saem do salário de quem é responsável.</p>`:`<div class="empty"><b>Nenhuma conta fixa ainda</b>Aluguel, internet, luz, academia, streaming: cadastre uma vez e ela aparece todo mês.</div>`}
     </section>
-    <section class="card"><h2>Dívidas <span class="sub">${divs.length?`Restante ${fmt(totD)} · parcelas ${fmt(totP)} neste mês`:""}</span></h2>
+    <section class="card"><h2>Dívidas${esc(de)} <span class="sub">${divs.length?`Restante ${fmt(totD)} · parcelas ${fmt(totP)} neste mês`:""}</span></h2>
       <div class="row-actions" style="justify-content:flex-start;margin-bottom:12px">${add("add-divida","+ Nova dívida")}</div>
       ${divs.length?`<div class="goals">${divs.map(debtCard).join("")}</div><p style="color:var(--muted);font-size:13px;margin:12px 0 0">As parcelas avançam sozinhas a cada mês até a última. Ordenadas pelos maiores juros.</p>`:`<div class="empty"><b>Nenhuma dívida registrada</b>Empréstimos, compras parceladas, financiamentos: as parcelas entram sozinhas em cada mês.</div>`}
     </section>
-    <section class="card"><h2>Metas de economia</h2>
+    <section class="card"><h2>Metas${esc(de)}</h2>
       <div class="row-actions" style="justify-content:flex-start;margin-bottom:12px">${add("add-meta","+ Nova meta")}</div>
       ${metas.length?`<div class="goals">${metas.map(goalCard).join("")}</div>`:`<div class="empty"><b>Nenhuma meta ainda</b>Reserva de emergência, viagem, casa nova: crie a primeira meta do casal.</div>`}
     </section>`;
@@ -1067,8 +1084,8 @@ function txModal(id){
   });
 }
 
-function metaModal(id){
-  const ex = id? S.metas.find(m=>m.id===id):null; const m = ex || {nome:"",alvo:"",guardado:"",prazo:"",aporte:"",quem:"casal"}; const ro=S.readOnly;
+function metaModal(id, quemNovo){
+  const ex = id? S.metas.find(m=>m.id===id):null; const m = ex || {nome:"",alvo:"",guardado:"",prazo:"",aporte:"",quem:quemNovo||"casal"}; const ro=S.readOnly;
   const n = v => v!==""&&v!=null&&+v ? String(v).replace(".",",") : "";
   openModal(`<h2>${ex?"Editar meta":"Nova meta"}<button class="x" data-close aria-label="Fechar">×</button></h2>
     <form class="form" id="mf" novalidate>
@@ -1102,9 +1119,9 @@ function quemSeg(name,val){
   return `<div class="seg">${[["a",nome("a")],["b",nome("b")],["casal","Os dois"]].map(([v,t])=>`<input type="radio" name="${name}" id="${name}-${v}" value="${v}" ${val===v?"checked":""}><label for="${name}-${v}">${v==="casal"?`<span class="dot a"></span><span class="dot b" style="margin-left:-9px"></span>`:`<span class="dot ${v}"></span>`}${esc(t)}</label>`).join("")}</div>`;
 }
 
-function dividaModal(id, tipoNovo){
+function dividaModal(id, tipoNovo, quemNovo){
   const ex = id? S.dividas.find(m=>m.id===id):null;
-  const d = ex || {tipo:tipoNovo||"parcelada",nome:"",quem:"casal",saldo:"",parcela:"",totalParcelas:"",vencimento:"",juros:"",prioridade:"Média",categoria:"Contas",inicio:CUR(),fim:"",obs:""};
+  const d = ex || {tipo:tipoNovo||"parcelada",nome:"",quem:quemNovo||"casal",saldo:"",parcela:"",totalParcelas:"",vencimento:"",juros:"",prioridade:"Média",categoria:"Contas",inicio:CUR(),fim:"",obs:""};
   const tp0 = divTipo(d); const ro=S.readOnly;
   const n = v => v!==""&&v!=null&&+v ? String(v).replace(".",",") : "";
   const pgAntes = tp0==="parcelada" && +d.totalParcelas ? Math.min(Math.max(mdiff(divInicio(d),CUR()),0),+d.totalParcelas) : "";
@@ -1225,6 +1242,7 @@ function perfilModal(){
 
 let toastT; function toast(msg){ let t=$(".toast"); if(!t){ t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); document.body.appendChild(t);} t.textContent=msg; clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2800); }
 
+const quemNovo = () => (S.contasAba||"casal")==="casal" ? "casal" : ((S.contasQuem===undefined ? euSou() : S.contasQuem) || euSou() || "a");
 // ---------- Eventos ----------
 $("#m-prev").addEventListener("click",()=>{ S.month=addMonths(S.month,-1); S.monthPicked=true; render(); });
 $("#m-next").addEventListener("click",()=>{ S.month=addMonths(S.month,1); S.monthPicked=true; render(); });
@@ -1235,6 +1253,8 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape" && $("#ov")) closeM
 $("#main").addEventListener("click",e=>{
   if(e.target.closest("[data-logout-inline]")){ window.FB.signOut(window.FB.auth); return; }
   if(e.target.closest("[data-abrir-perfil]")){ perfilModal(); return; }
+  const ca=e.target.closest("[data-ca]"); if(ca){ S.contasAba=ca.dataset.ca; render(); return; }
+  const cq=e.target.closest("[data-cq]"); if(cq){ S.contasQuem=cq.dataset.cq; render(); return; }
   const eu=e.target.closest("[data-eusou]"); if(eu){ definirEuSou(eu.dataset.eusou); return; }
   const t=e.target.closest("[data-edit],[data-meta],[data-divida],[data-ft],[data-fq],#add-meta,#add-divida,#add-fixa,#s-save,#s-save2"); if(!t) return;
   if(t.dataset.ft!==undefined){ S.filt.tipo=t.dataset.ft; render(); return; }
@@ -1242,9 +1262,9 @@ $("#main").addEventListener("click",e=>{
   if(t.dataset.edit){ const id=t.dataset.edit; if(id.startsWith("auto:sal:")){ location.hash="#ajustes"; toast("O salário automático se edita aqui em Ajustes"); } else if(id.startsWith("auto:div:")) dividaModal(id.slice(9)); else txModal(id); }
   else if(t.dataset.meta) metaModal(t.dataset.meta);
   else if(t.dataset.divida) dividaModal(t.dataset.divida);
-  else if(t.id==="add-meta") metaModal();
-  else if(t.id==="add-divida") dividaModal(null,"parcelada");
-  else if(t.id==="add-fixa") dividaModal(null,"fixa");
+  else if(t.id==="add-meta") metaModal(null, quemNovo());
+  else if(t.id==="add-divida") dividaModal(null,"parcelada",quemNovo());
+  else if(t.id==="add-fixa") dividaModal(null,"fixa",quemNovo());
   else if(t.id==="s-save2"){ const m=v=>{ const x=parseMoney(v); return x>0?Math.round(x*100)/100:0; }, dd=v=>{ const x=parseInt(String(v).replace(/\D/g,""),10); return x>=1&&x<=31?x:""; }, g=id=>document.getElementById(id).value;
     const cfg={...S.config, salInicio:S.config.salInicio||CUR()};
     for(const K of ["A","B"]){ const f=document.querySelector(`[name=s-freq${K}]:checked`).value; cfg["freq"+K]=f;
