@@ -224,6 +224,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .who-chip{display:inline-flex;align-items:center;gap:6px;font:500 11px/1.4 var(--f-body);color:var(--soft);background:rgba(255,255,255,.05);border-radius:99px;padding:3px 9px 3px 7px;white-space:nowrap}
 .who-chip .dot{width:7px;height:7px;box-shadow:0 0 0 1.5px var(--panel2)}
 .av.c{background:rgba(255,255,255,.06);color:var(--soft);font-size:10.5px}
+.tag.outro{background:rgba(255,181,71,.12);color:var(--warn)}
 .tag.auto{background:rgba(142,203,255,.1);color:var(--blue)}
 .sal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sal-col{background:var(--panel2);border:1px solid var(--cardline);border-radius:12px;padding:18px;min-width:0}
@@ -638,21 +639,23 @@ function autoTx(mk){
 function monthTx(mk=S.month){ return [...S.lanc.filter(l=>monthKey(l.data)===mk), ...autoTx(mk)]; }
 function summary(mk=S.month){
   const tx=monthTx(mk); let rec=0,desp=0,ess=0; const cat={}; const rA={a:0,b:0}; const pago={a:0,b:0}; const ind={a:0,b:0};
-  const sal={a:0,b:0}, extra={a:0,b:0}, fix={a:0,b:0,casal:0}, parc={a:0,b:0,casal:0}, indMan={a:0,b:0};
+  const pelo={a:0,b:0}, sal={a:0,b:0}, extra={a:0,b:0}, fix={a:0,b:0,casal:0}, parc={a:0,b:0,casal:0}, indMan={a:0,b:0};
   for(const l of tx){ const v=Number(l.valor)||0; const q=l.quem==="b"?"b":l.quem==="casal"?"casal":"a";
     if(l.tipo==="Receita"){ const p=q==="casal"?"a":q; rec+=v; rA[p]+=v; if(l.auto==="salario") sal[p]+=v; else extra[p]+=v; }
     else { desp+=v; if(l.essencial) ess+=v; cat[l.categoria]=(cat[l.categoria]||0)+v;
       if(l.auto){ (l.auto==="fixa"?fix:parc)[q]+=v; if(q!=="casal") ind[q]+=v; }
-      else if(l.divisao==="individual"){ ind[q]+=v; indMan[q]+=v; } else pago[q]+=v; }
+      else if(l.divisao==="individual"){ ind[q]+=v; indMan[q]+=v; }
+      else if(l.divisao==="outro"){ const o=q==="a"?"b":"a"; pelo[q]+=v; ind[o]+=v; indMan[o]+=v; }
+      else pago[q]+=v; }
   }
   const comp = pago.a+pago.b;
   let ra = .5; if(S.config.divisao==="proporcional" && rA.a+rA.b>0) ra = rA.a/(rA.a+rA.b);
-  const parteA = comp*ra, parteB = comp-parteA; const saldoA = pago.a-parteA;
+  const parteA = comp*ra, parteB = comp-parteA; const saldoA = pago.a-parteA + pelo.a - pelo.b;
   const share = k => k==="a"?ra:1-ra;
   const metasAp = k => S.metas.filter(m=>(+m.aporte||0)>0 && (+m.guardado||0)<(+m.alvo||0) && (!m.prazo||mk<=m.prazo)).reduce((t,m)=>{ const q=m.quem||"casal"; return t + (q==="casal"?(+m.aporte)*share(k):q===k?+m.aporte:0); },0);
   const plano = k => { const fixas=fix[k]+fix.casal*share(k), parcelas=parc[k]+parc.casal*share(k), metas=metasAp(k), dia=indMan[k]+(k==="a"?parteA:parteB);
     const entra=sal[k]+extra[k]; return {sal:sal[k],extra:extra[k],fixas,parcelas,metas,dia,livre:entra-fixas-parcelas-metas-dia}; };
-  return {tx,rec,desp,ess,saldo:rec-desp,cat,rA,pago,ind,comp,ra,parteA,parteB,saldoA,plano:{a:plano("a"),b:plano("b")}};
+  return {tx,rec,desp,ess,saldo:rec-desp,cat,rA,pago,pelo,ind,comp,ra,parteA,parteB,saldoA,plano:{a:plano("a"),b:plano("b")}};
 }
 
 // ---------- Render ----------
@@ -688,7 +691,7 @@ function txRow(l){
   return `<button class="tx" data-edit="${esc(l.id)}">
     ${av}
     <span style="min-width:0"><div class="t">${esc(l.descricao||l.categoria)}</div>
-      <div class="m"><span>${esc(l.categoria)}</span>${l.auto?"":`·<span>${esc(l.pagamento||"")}</span>`}${autoTag}${l.auto?"":!rec ? (l.divisao==="individual"?`<span class="tag">Individual</span>`:`<span class="tag casal">Do casal</span>`):""}${l.essencial&&!rec&&!l.auto?`<span class="tag">Essencial</span>`:""}</div></span>
+      <div class="m"><span>${esc(l.categoria)}</span>${l.auto?"":`·<span>${esc(l.pagamento||"")}</span>`}${autoTag}${l.auto?"":!rec ? (l.divisao==="individual"?`<span class="tag">Individual</span>`:l.divisao==="outro"?`<span class="tag outro">É de ${esc(nome(l.quem==="b"?"a":"b"))}</span>`:`<span class="tag casal">Do casal</span>`):""}${l.essencial&&!rec&&!l.auto?`<span class="tag">Essencial</span>`:""}</div></span>
     <span class="val ${rec?"pos":""}">${rec?"+ ":"− "}${fmt(l.valor)}</span>
   </button>`;
 }
@@ -697,11 +700,13 @@ function vPainel(){
   const s=summary(); const A=nome("a"),B=nome("b");
   const essPct = s.desp? Math.round(s.ess/s.desp*100):0;
   let titulo, sub;
-  if(s.comp===0){ titulo="Nenhum gasto do casal registrado neste mês."; sub="Lance as despesas compartilhadas para ver quem deve quanto para quem."; }
-  else if(Math.abs(s.saldoA)<0.01){ titulo="Tudo certo: vocês estão quites."; sub=`Gastos do casal: ${fmt(s.comp)}.`; }
+  const pelos = [s.pelo.a?`${esc(A)} pagou ${fmt(s.pelo.a)} por ${esc(B)}`:"", s.pelo.b?`${esc(B)} pagou ${fmt(s.pelo.b)} por ${esc(A)}`:""].filter(Boolean).join("; ");
+  const partes = [s.comp?`Gastos do casal: ${fmt(s.comp)}, divididos ${S.config.divisao==="proporcional"?`pela renda (${Math.round(s.ra*100)}% / ${100-Math.round(s.ra*100)}%)`:"meio a meio"}`:"", pelos].filter(Boolean).join(". ");
+  if(s.comp===0 && !s.pelo.a && !s.pelo.b){ titulo="Nada para acertar neste mês."; sub="Gastos marcados como “Do casal” ou pagos por um para o outro aparecem aqui, com quem deve quanto para quem."; }
+  else if(Math.abs(s.saldoA)<0.01){ titulo="Tudo certo: vocês estão quites."; sub=partes+"."; }
   else { const dev = s.saldoA>0?B:A, cred=s.saldoA>0?A:B;
     titulo=`${esc(dev)} deve ${fmt(Math.abs(s.saldoA))} para ${esc(cred)}`;
-    sub = `Para fechar ${esc(monthName(S.month,{month:"long"}))}. Gastos do casal: ${fmt(s.comp)}, divididos ${S.config.divisao==="proporcional"?`pela renda (${Math.round(s.ra*100)}% / ${100-Math.round(s.ra*100)}%)`:"meio a meio"}.`; }
+    sub = `Para fechar ${esc(monthName(S.month,{month:"long"}))}. ${partes}.`; }
   const cats = Object.entries(s.cat).sort((a,b)=>b[1]-a[1]); const maxC = cats.length?cats[0][1]:1;
   const months = Array.from({length:6},(_,i)=>addMonths(S.month,i-5));
   const series = months.map(mk=>{ const t=summary(mk); return {mk,r:t.rec,d:t.desp}; });
@@ -711,8 +716,8 @@ function vPainel(){
   <section class="card hero">
     <div><div class="label">Acerto do mês</div><h2>${titulo}</h2><p>${sub}</p></div>
     <div class="who">
-      <div class="pill-person"><span class="dot a"></span><div><small>${esc(A)} pagou</small><b>${fmt(s.pago.a)}</b><small>parte: ${fmt(s.parteA)}</small></div></div>
-      <div class="pill-person"><span class="dot b"></span><div><small>${esc(B)} pagou</small><b>${fmt(s.pago.b)}</b><small>parte: ${fmt(s.parteB)}</small></div></div>
+      <div class="pill-person"><span class="dot a"></span><div><small>${esc(A)} pagou</small><b>${fmt(s.pago.a+s.pelo.a)}</b><small>${s.pelo.a?`${fmt(s.pelo.a)} por ${esc(B)} · `:""}parte: ${fmt(s.parteA)}</small></div></div>
+      <div class="pill-person"><span class="dot b"></span><div><small>${esc(B)} pagou</small><b>${fmt(s.pago.b+s.pelo.b)}</b><small>${s.pelo.b?`${fmt(s.pelo.b)} por ${esc(A)} · `:""}parte: ${fmt(s.parteB)}</small></div></div>
     </div>
   </section>
   <section class="grid g-kpi">
@@ -888,7 +893,7 @@ function vAjustes(){
       <div class="field full"><span class="lbl">Como dividir os gastos do casal</span>
         <div class="seg"><input type="radio" name="s-div" id="s-div-i" value="igual" ${c.divisao!=="proporcional"?"checked":""} ${S.readOnly?"disabled":""}><label for="s-div-i">Meio a meio</label>
         <input type="radio" name="s-div" id="s-div-p" value="proporcional" ${c.divisao==="proporcional"?"checked":""} ${S.readOnly?"disabled":""}><label for="s-div-p">Proporcional à renda</label></div>
-        <div class="help">No proporcional, quem ganha mais no mês paga uma parte maior das despesas marcadas como “Do casal”.</div>
+        <div class="help">Vale só para os gastos marcados como “Do casal”. No proporcional, quem ganha mais no mês paga uma parte maior deles.</div>
       </div>
     </div>
     <div class="row-actions" style="justify-content:flex-start"><button class="btn primary" id="s-save" ${S.readOnly?"hidden":""}>Salvar ajustes</button></div>
@@ -898,7 +903,7 @@ function vAjustes(){
     <h2>Como usar</h2>
     <div style="display:grid;gap:8px;font-size:14px;color:var(--muted)">
       <p style="margin:0"><b style="color:var(--ink)">Cartão de crédito:</b> lance cada compra na data da compra. Quando pagar a fatura, não lance o pagamento de novo, senão conta duas vezes.</p>
-      <p style="margin:0"><b style="color:var(--ink)">Do casal ou individual:</b> despesas do casal entram no acerto do mês; as individuais ficam só na conta de quem gastou.</p>
+      <p style="margin:0"><b style="color:var(--ink)">De quem é o gasto:</b> “Só de quem pagou” não entra no acerto. “Do casal” é dividido entre vocês. “É do outro” é quando um paga algo que é do outro: o valor inteiro volta no acerto do mês.</p>
       <p style="margin:0"><b style="color:var(--ink)">Automáticos:</b> salários, contas fixas e parcelas aparecem sozinhos em Lançamentos todo mês, com a etiqueta “Automático”. Para mudar, edite em Ajustes ou em Contas e metas.</p>
       <p style="margin:0"><b style="color:var(--ink)">Instalar no iPhone:</b> abra no Safari, toque em Compartilhar e em “Adicionar à Tela de Início”.</p>
       <p style="margin:0"><b style="color:var(--ink)">Privacidade:</b> não guarde senhas, números completos de cartão ou dados de acesso ao banco.</p>
@@ -921,7 +926,7 @@ function armDelete(btn,fn){ btn.addEventListener("click",()=>{ if(btn.classList.
 
 function txModal(id){
   const ex = id ? S.lanc.find(l=>l.id===id) : null;
-  const d = ex || {tipo:"Despesa",data: monthKey(todayISO())===S.month ? todayISO() : S.month+"-01", categoria:"Alimentação", pagamento:"Pix", quem:"a", divisao:"casal", essencial:true, valor:"", descricao:"", obs:""};
+  const d = ex || {tipo:"Despesa",data: monthKey(todayISO())===S.month ? todayISO() : S.month+"-01", categoria:"Alimentação", pagamento:"Pix", quem:"a", divisao:"individual", essencial:true, valor:"", descricao:"", obs:""};
   const ro = S.readOnly;
   const catOpts = t => (t==="Receita"?CAT_REC:CAT_DESP).map(c=>`<option ${d.categoria===c?"selected":""}>${esc(c)}</option>`).join("");
   openModal(`<h2>${ex?"Editar lançamento":"Novo lançamento"}<button class="x" data-close aria-label="Fechar">×</button></h2>
@@ -937,9 +942,11 @@ function txModal(id){
       <div class="field"><span class="lbl" id="quem-lbl">${d.tipo==="Receita"?"Quem recebeu":"Quem pagou"}</span><div class="seg">
         <input type="radio" name="quem" id="q-a" value="a" ${d.quem!=="b"?"checked":""}><label for="q-a"><span class="dot a"></span>${esc(nome("a"))}</label>
         <input type="radio" name="quem" id="q-b" value="b" ${d.quem==="b"?"checked":""}><label for="q-b"><span class="dot b"></span>${esc(nome("b"))}</label></div></div>
-      <div class="field desp-only"><span class="lbl">Divisão</span><div class="seg">
-        <input type="radio" name="div" id="d-c" value="casal" ${d.divisao!=="individual"?"checked":""}><label for="d-c">Do casal</label>
-        <input type="radio" name="div" id="d-i" value="individual" ${d.divisao==="individual"?"checked":""}><label for="d-i">Individual</label></div></div>
+      <div class="field full desp-only"><span class="lbl">De quem é o gasto</span><div class="seg">
+        <input type="radio" name="div" id="d-i" value="individual" ${d.divisao==="individual"?"checked":""}><label for="d-i" id="d-i-l">Individual</label>
+        <input type="radio" name="div" id="d-c" value="casal" ${!["individual","outro"].includes(d.divisao)?"checked":""}><label for="d-c">Do casal</label>
+        <input type="radio" name="div" id="d-o" value="outro" ${d.divisao==="outro"?"checked":""}><label for="d-o" id="d-o-l">É do outro</label></div>
+        <div class="help" id="div-help"></div></div>
       <div class="field desp-only"><span class="lbl">Essencial?</span><div class="seg">
         <input type="radio" name="ess" id="e-s" value="1" ${d.essencial?"checked":""}><label for="e-s">Sim</label>
         <input type="radio" name="ess" id="e-n" value="0" ${!d.essencial?"checked":""}><label for="e-n">Não</label></div></div>
@@ -954,9 +961,12 @@ function txModal(id){
     const form=ov.querySelector("#txf");
     const sync=()=>{ const t=form.querySelector("[name=tipo]:checked").value; ov.querySelectorAll(".desp-only").forEach(e=>e.hidden=t==="Receita");
       $("#quem-lbl").textContent = t==="Receita"?"Quem recebeu":"Quem pagou";
+      const pq=form.querySelector("[name=quem]:checked").value, oq=pq==="a"?"b":"a", dv=form.querySelector("[name=div]:checked").value;
+      $("#d-i-l").textContent=`Só de ${nome(pq)}`; $("#d-o-l").textContent=`É de ${nome(oq)}`;
+      $("#div-help").textContent = dv==="individual" ? `Gasto só de ${nome(pq)}. Não entra no acerto.` : dv==="casal" ? `Dividido entre vocês ${S.config.divisao==="proporcional"?"pela renda":"meio a meio"} no acerto do mês.` : `${nome(pq)} pagou algo que é de ${nome(oq)}. ${nome(oq)} devolve o valor inteiro no acerto do mês.`;
       $("#card-help").hidden = !(t==="Despesa" && $("#f-pag").value==="Cartão de crédito"); };
     form.querySelectorAll("[name=tipo]").forEach(r=>r.addEventListener("change",()=>{ const t=form.querySelector("[name=tipo]:checked").value; const cur=$("#f-cat").value; $("#f-cat").innerHTML=(t==="Receita"?CAT_REC:CAT_DESP).map(c=>`<option ${cur===c?"selected":""}>${esc(c)}</option>`).join(""); sync(); }));
-    $("#f-pag").addEventListener("change",sync); sync();
+    $("#f-pag").addEventListener("change",sync); form.querySelectorAll("[name=quem],[name=div]").forEach(r=>r.addEventListener("change",sync)); sync();
     if(ro) form.querySelectorAll("input,select").forEach(i=>i.disabled=true);
     const save=async()=>{ const v=parseMoney($("#f-valor").value); const err=$("#f-err");
       if(!(v>0)){ err.hidden=false; err.textContent="Informe um valor maior que zero, por exemplo 49,90."; $("#f-valor").focus(); return; }
