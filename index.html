@@ -28,7 +28,7 @@
   --fg-rgb:255,255,255; --glass:rgba(26,26,26,.68); --overlay:rgba(9,9,9,.85);
   --accent:#d5ff56; --accent-rgb:213,255,86; --accent-dark:#5c7d00; --accent-ink:var(--accent);
   --red:#ff503b; --red-soft:#ff7a68; --blue:#8ecbff; --warn:#ffb547;
-  --a:#d5ff56; --b:#8ecbff;
+  --a:#d5ff56; --b:#8ecbff; --a-solid:#d5ff56; --b-solid:#8ecbff;
   --pos:var(--accent-ink); --neg:var(--red-soft);
   --casal:var(--accent);
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -182,7 +182,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .tx:last-child{border-bottom:0}
 .tx:hover .t{color:var(--hi)}
 .av{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font:600 13px var(--mono);flex:none}
-.av.a{background:rgba(var(--accent-rgb),.08);color:var(--a)} .av.b{background:rgba(142,203,255,.1);color:var(--b)}
+.av.a{background:var(--a-solid);color:#111} .av.b{background:var(--b-solid);color:#111}
 .tx .t{font-weight:500;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .2s}
 .tx .m{font-size:12px;color:var(--faint);display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:1px}
 .tag{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:2px 9px 2px 7px;font:500 10px/1.5 var(--mono);letter-spacing:.06em;white-space:nowrap;background:rgba(var(--fg-rgb),.05);color:var(--label)}
@@ -236,7 +236,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .goal .big{font:600 24px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:auto}
 .goal .big small{font:400 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-left:4px}
 .goal .track{height:8px;background:var(--track);border-radius:4px;overflow:hidden}
-.goal .fill{height:100%;background:var(--accent);border-radius:4px}
+.goal .fill{height:100%;background:var(--own,var(--accent));border-radius:4px}
 .goal .meta{font-size:12px;color:var(--faint);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
 .prio{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px 3px 8px;font:500 10.5px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase}
 .prio::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
@@ -281,19 +281,22 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .cat-link:hover{text-decoration-color:var(--accent)}
 .cat-n{display:block;font:400 11px var(--f-body);color:var(--faint);margin-top:2px}
 .bud .fill.free{background:var(--outline);opacity:.5}
-.who-chip{display:inline-flex;align-items:center;gap:6px;font:500 11px/1.4 var(--f-body);color:var(--soft);background:rgba(var(--fg-rgb),.05);border-radius:99px;padding:3px 9px 3px 7px;white-space:nowrap}
-.who-chip .dot{width:7px;height:7px;box-shadow:0 0 0 1.5px var(--panel2)}
-.av.c{background:rgba(var(--fg-rgb),.06);color:var(--soft);font-size:10.5px}
+.who-chip{display:inline-flex;align-items:center;font:600 11px/1.4 var(--f-body);color:#111;background:var(--line2);border-radius:99px;padding:3px 10px;white-space:nowrap}
+.who-chip.a{background:var(--a-solid)} .who-chip.b{background:var(--b-solid)}
+.who-chip.c{background:linear-gradient(90deg,var(--a-solid) 0 50%,var(--b-solid) 50% 100%)}
+.who-chip.big{font-size:13px;padding:4px 12px}
+.own-a{--own:var(--a)} .own-b{--own:var(--b)} .own-c{--own:var(--accent)}
+.av.c{background:linear-gradient(135deg,var(--a-solid) 0 50%,var(--b-solid) 50% 100%);color:#111;font-size:10.5px}
 .tag.outro{background:rgba(255,181,71,.12);color:var(--warn)}
 .tag.auto{background:rgba(142,203,255,.1);color:var(--blue)}
 .sal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sal-col{background:var(--panel2);border:1px solid var(--cardline);border-radius:12px;padding:18px;min-width:0}
 .sal-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
 .sal-head b{font:600 16px var(--display);letter-spacing:-.02em}
-.sal-big{font:600 clamp(24px,2.4vw,34px)/1 var(--display);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--accent-ink)}
+.sal-big{font:600 clamp(24px,2.4vw,34px)/1 var(--display);letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--own,var(--accent-ink))}
 .sal-big.neg{color:var(--red-soft)}
 .sal-col .track{height:6px;border-radius:3px;background:var(--track2);overflow:hidden}
-.sal-col .fill{height:100%;background:var(--accent);border-radius:3px}
+.sal-col .fill{height:100%;background:var(--own,var(--accent));border-radius:3px}
 .sal-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px;color:var(--soft)}
 .sal-row .num{font:500 12.5px var(--mono);color:var(--soft)}
 @media (max-width:560px){ .sal-grid{grid-template-columns:1fr} }
@@ -582,7 +585,7 @@ const meuUid = () => (window.FB && window.FB.auth.currentUser && window.FB.auth.
 const euSou = () => ((S.config.contas||{})[meuUid()]) || "";
 const CORES=[["verde","Verde limão","#d5ff56","#86b300"],["azul","Azul","#8ecbff","#3d93e6"],["menta","Menta","#6ff0c2","#14a874"],["lilas","Lilás","#c3a6ff","#7b55d9"],["rosa","Rosa","#ff9fcf","#d93d8a"],["coral","Coral","#ff8f6b","#e0592f"],["amarelo","Amarelo","#ffd84d","#c79500"]];
 function corDe(k){ if(typeof temaPreview!=="undefined" && temaPreview && k===euSou()) return temaPreview.cor; const contas=S.config.contas||{}, perfis=S.config.perfis||{}; const uid=Object.keys(contas).find(u=>contas[u]===k); return (uid && perfis[uid] && perfis[uid].cor) || (k==="b"?"azul":"verde"); }
-function pintarPessoas(modo){ const r=document.documentElement.style; for(const k of ["a","b"]){ const c=CORES.find(x=>x[0]===corDe(k))||CORES[0]; r.setProperty("--"+k, modo==="claro"?c[3]:c[2]); } }
+function pintarPessoas(modo){ const r=document.documentElement.style; for(const k of ["a","b"]){ const c=CORES.find(x=>x[0]===corDe(k))||CORES[0]; r.setProperty("--"+k, modo==="claro"?c[3]:c[2]); r.setProperty("--"+k+"-solid", c[2]); } }
 const meuTema = () => { const pf=(S.config.perfis||{})[meuUid()]||{}; return {cor: pf.cor || (euSou()==="b"?"azul":"verde"), modo: pf.modo || "escuro"}; };
 let temaPreview=null;
 function pintarTema(t){ const r=document.documentElement; r.dataset.cor=t.cor; r.dataset.modo=t.modo; pintarPessoas(t.modo); const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content = t.modo==="claro" ? "#f2f2ee" : "#090909"; }
@@ -694,7 +697,7 @@ const CAT_CANON = Object.fromEntries([...CAT_DESP,...CAT_REC].map(c=>[semAcento(
 const normCat = c => CAT_CANON[semAcento(c)] || (String(c||"").trim() || "Sem categoria");
 const CUR = () => monthKey(todayISO());
 const mdiff = (a,b) => { const [y1,m1]=a.split("-").map(Number),[y2,m2]=b.split("-").map(Number); return (y2-y1)*12+(m2-m1); };
-const quemChip = q => q==="casal" ? `<span class="who-chip"><span class="dot a"></span><span class="dot b" style="margin-left:-6px"></span>Os dois</span>` : `<span class="who-chip"><span class="dot ${q==="b"?"b":"a"}"></span>${esc(nome(q==="b"?"b":"a"))}</span>`;
+const quemChip = q => q==="casal" ? `<span class="who-chip c">Os dois</span>` : `<span class="who-chip ${q==="b"?"b":"a"}">${esc(nome(q==="b"?"b":"a"))}</span>`;
 function divTipo(d){ return d.tipo || ((+d.totalParcelas>0)?"parcelada":"avulsa"); }
 function divInicio(d){ return d.inicio || addMonths(CUR(), -(+d.parcelasPagas||0)); }
 function parcState(d, mk=CUR()){
@@ -898,13 +901,13 @@ function vMetas(){
   const totP = divs.filter(d=>divTipo(d)==="parcelada" && (()=>{const p=parcState(d,S.month); return p.nMes>=1&&p.nMes<=p.t;})()).reduce((t,d)=>t+(+d.parcela||0),0);
   const goalCard = m => { const alvo=+m.alvo||0, g=+m.guardado||0, falta=Math.max(alvo-g,0); const pct=alvo?Math.min(1,g/alvo):0;
     let sug=""; if(m.prazo && falta>0){ const n=mdiff(now,m.prazo)+1; sug = n>0? `${fmt(falta/n)}/mês por ${n} ${n===1?"mês":"meses"}` : "prazo vencido"; }
-    return `<button class="goal" data-meta="${esc(m.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(m.nome)}</h3>${quemChip(m.quem||"casal")}</div>
+    return `<button class="goal ${(m.quem||"casal")==="b"?"own-b":(m.quem||"casal")==="a"?"own-a":"own-c"}" data-meta="${esc(m.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(m.nome)}</h3>${quemChip(m.quem||"casal")}</div>
       <div class="big">${fmt(g)} <small>de ${fmt(alvo)}</small></div>
       <div class="track"><div class="fill" style="width:${(pct*100).toFixed(1)}%"></div></div>
       <div class="meta"><span>${Math.round(pct*100)}% · falta ${fmt(falta)}</span><span>${m.prazo?"até "+esc(monthName(m.prazo,{month:"short",year:"numeric"}).replace(".","")):"sem prazo"}</span></div>
       ${+m.aporte>0&&falta>0?`<div class="meta"><span>Aporte de ${fmt(m.aporte)}/mês sai do salário</span></div>`:sug?`<div class="meta"><span>Sugestão: guardar ${esc(sug)}</span></div>`:""}</button>`; };
   const fixaCard = d => { const ativa=fixaAtiva(d,S.month);
-    return `<button class="goal" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(d.nome)}</h3>${quemChip(d.quem||"casal")}</div>
+    return `<button class="goal ${(d.quem||"casal")==="b"?"own-b":(d.quem||"casal")==="a"?"own-a":"own-c"}" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(d.nome)}</h3>${quemChip(d.quem||"casal")}</div>
       <div class="big">${fmt(d.parcela)} <small>por mês</small></div>
       <div class="meta"><span>${esc(d.categoria||"Contas")}${d.vencimento?` · vence dia ${esc(d.vencimento)}`:""}</span><span class="parc-left ${ativa?"done":""}">${ativa?"Ativa":"Fora do mês"}</span></div>
       <div class="meta"><span>Desde ${esc(monthName(d.inicio||now,{month:"short",year:"numeric"}).replace(".",""))}${d.fim?` até ${esc(monthName(d.fim,{month:"short",year:"numeric"}).replace(".",""))}`:" · sem data para acabar"}</span></div></button>`; };
@@ -914,7 +917,7 @@ function vMetas(){
       info = `<div class="track"><div class="fill" style="width:${pct.toFixed(1)}%"></div></div>
       <div class="meta"><span>${p.pagas} de ${p.t} parcelas pagas</span><span class="parc-left ${p.faltam===0?"done":""}">${p.faltam===0?"Quitada":`Faltam ${p.faltam}`}</span></div>
       <div class="meta"><span>${pm.nMes>=1&&pm.nMes<=pm.t?`Em ${esc(monthName(S.month,{month:"short"}).replace(".",""))}: parcela ${pm.nMes}/${pm.t}`:pm.nMes>pm.t?"Sem parcela neste mês":"Ainda não começou"}</span><span>Última em ${esc(monthName(p.fim,{month:"short",year:"numeric"}).replace(".",""))}</span></div>`; }
-    return `<button class="goal" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(d.nome)}</h3>${quemChip(d.quem||"casal")}</div>
+    return `<button class="goal ${(d.quem||"casal")==="b"?"own-b":(d.quem||"casal")==="a"?"own-a":"own-c"}" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(d.nome)}</h3>${quemChip(d.quem||"casal")}</div>
       <div class="big">${fmt(divSaldo(d))} <small>${tp==="parcelada"?"restante":"saldo atual"}</small></div>
       ${info}
       <div class="meta"><span>${+d.parcela>0?`Parcela ${fmt(d.parcela)}`:"Sem parcela fixa"}${d.vencimento?` · dia ${esc(d.vencimento)}`:""}</span><span><span class="prio ${esc(d.prioridade||"Média")}">${esc(d.prioridade||"Média")}</span></span></div>
@@ -947,7 +950,7 @@ function salarioCard(s){
   const temSal = ["a","b"].some(k=>s.plano[k].sal>0||s.plano[k].extra>0);
   const linha = (t,v,neg=true) => `<div class="sal-row"><span>${t}</span><span class="num">${v?(neg?"− ":"")+fmt(v):"—"}</span></div>`;
   const col = k => { const p=s.plano[k]; const entra=p.sal+p.extra; const pct=entra>0?Math.max(0,Math.min(1,p.livre/entra)):0;
-    return `<div class="sal-col"><div class="sal-head"><span class="dot ${k}"></span><b>${esc(nome(k))}</b></div>
+    return `<div class="sal-col own-${k}"><div class="sal-head"><span class="who-chip ${k} big">${esc(nome(k))}</span></div>
       <div class="sal-big ${p.livre<0?"neg":""}">${fmt(p.livre)}</div><span class="label">Livre no mês</span>
       <div class="track" style="margin:10px 0 12px"><div class="fill" style="width:${(pct*100).toFixed(1)}%"></div></div>
       ${linha("Salário",p.sal,false)}${p.extra?linha("Outras receitas",p.extra,false):""}
