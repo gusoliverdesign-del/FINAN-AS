@@ -331,6 +331,12 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .sw.f-vista{background:var(--soft)} .sw.f-cartao{background:var(--red)} .sw.f-vale{background:var(--warn)}
 .rel-note{color:var(--faint);font-size:13px;margin:12px 0 0}
 .kpi .hint .pos{color:var(--pos)} .kpi .hint .neg{color:var(--red-soft)}
+.meta-hist{display:grid;margin-top:8px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mh-row{display:grid;grid-template-columns:minmax(0,1fr) auto 28px;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--soft)}
+.mh-row:last-child{border-bottom:0}
+.mh-row b{font:500 12.5px var(--mono);color:var(--pos)} .mh-row b.neg{color:var(--red-soft)}
+.mh-del{border:0;background:none;color:var(--faint);font-size:16px;width:28px;height:28px;border-radius:50%}
+.mh-del:hover{background:var(--track);color:var(--text)}
 .who-chip{display:inline-flex;align-items:center;font:600 11px/1.4 var(--f-body);color:#111;background:var(--line2);border-radius:99px;padding:3px 10px;white-space:nowrap}
 .who-chip.a{background:var(--a-solid)} .who-chip.b{background:var(--b-solid)}
 .who-chip.c{background:linear-gradient(90deg,var(--a-solid) 0 50%,var(--b-solid) 50% 100%)}
@@ -666,7 +672,7 @@ function startData(){
   const timer = setTimeout(()=>{ if(pending.size){ S.stale=true; render(); } },10000);
   const done = (k,snap) => { if(!snap.metadata.fromCache){ pending.delete(k); if(!pending.size){ clearTimeout(timer); S.stale=false; } } S.mode="db"; };
   const onErr = e => { if(e && e.code==="permission-denied"){ clearTimeout(timer); stopData(); showGate("denied"); return; } S.stale=true; render(); };
-  const sub = (col,key) => unsubs.push(fb.onSnapshot(fb.collection(fb.db,col),{includeMetadataChanges:true},snap=>{ S[key]=snap.docs.map(d=>({id:d.id,...d.data()})); done(col,snap); if(col==="lancamentos") pickMonth(); render(); }, onErr));
+  const sub = (col,key) => unsubs.push(fb.onSnapshot(fb.collection(fb.db,col),{includeMetadataChanges:true},snap=>{ S[key]=snap.docs.map(d=>({id:d.id,...d.data()})); done(col,snap); if(col==="lancamentos") pickMonth(); if(col==="metas") migrarMetas(); render(); }, onErr));
   sub("lancamentos","lanc"); sub("metas","metas"); sub("dividas","dividas"); sub("cartoes","cartoes");
   unsubs.push(fb.onSnapshot(fb.doc(fb.db,"config","geral"),{includeMetadataChanges:true},s=>{ S.config={...DEF_CONFIG,...(s.exists()?s.data():{})}; done("config",s); render(); }, onErr));
   unsubs.push(fb.onSnapshot(fb.doc(fb.db,"orcamento","plano"),{includeMetadataChanges:true},s=>{ S.limites=(s.exists() && s.data().limites)||{}; done("orcamento",s); render(); }, onErr));
@@ -862,9 +868,9 @@ function summary(mk=S.month){
   let ra = .5; if(S.config.divisao==="proporcional" && rA.a+rA.b>0) ra = rA.a/(rA.a+rA.b);
   const parteA = comp*ra, parteB = comp-parteA; const saldoA = pago.a-parteA + pelo.a - pelo.b;
   const share = k => k==="a"?ra:1-ra;
-  const metasAp = k => S.metas.filter(m=>(+m.aporte||0)>0 && (+m.guardado||0)<(+m.alvo||0) && (!m.prazo||mk<=m.prazo)).reduce((t,m)=>{ const q=m.quem||"casal"; return t + (q==="casal"?(+m.aporte)*share(k):q===k?+m.aporte:0); },0);
+  const metasMes = metasNoMes(mk, share);
   const plano = k => {
-    const fixas=fix[k]+fix.casal*share(k), parcelas=parc[k]+parc.casal*share(k), metas=metasAp(k), gastos=caixa[k];
+    const fixas=fix[k]+fix.casal*share(k), parcelas=parc[k]+parc.casal*share(k), metas=metasMes[k], gastos=caixa[k];
     const faturas=cartoesDe(k,"credito").reduce((t,c)=>t+faturaTotal(c,mk),0);
     const acerto = k==="a" ? saldoA : -saldoA;
     const vales = cartoesDe(k,"vale").map(c=>({nome:c.nome, saldo:valeSaldo(c,fimDoMes(mk))}));
@@ -1024,13 +1030,14 @@ function vMetas(){
   const totF = fixAtivas.reduce((t,d)=>t+(+d.parcela||0),0);
   const totD = divs.reduce((t,d)=>t+divSaldo(d),0);
   const totP = divs.filter(d=>divTipo(d)==="parcelada" && (()=>{const p=parcState(d,S.month); return p.nMes>=1&&p.nMes<=p.t;})()).reduce((t,d)=>t+(+d.parcela||0),0);
-  const goalCard = m => { const alvo=+m.alvo||0, g=+m.guardado||0, falta=Math.max(alvo-g,0); const pct=alvo?Math.min(1,g/alvo):0;
+  const goalCard = m => { const alvo=+m.alvo||0, g=metaGuardado(m), noMes=metaLinha(m,S.month).mov.filter(d=>d.mes===S.month).reduce((t,d)=>t+(+d.valor||0),0), falta=Math.max(alvo-g,0); const pct=alvo?Math.min(1,g/alvo):0;
     let sug=""; if(m.prazo && falta>0){ const n=mdiff(now,m.prazo)+1; sug = n>0? `${fmt(falta/n)}/mês por ${n} ${n===1?"mês":"meses"}` : "prazo vencido"; }
     return `<button class="goal ${(m.quem||"casal")==="b"?"own-b":(m.quem||"casal")==="a"?"own-a":"own-c"}" data-meta="${esc(m.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(m.nome)}</h3>${quemChip(m.quem||"casal")}</div>
       <div class="big">${fmt(g)} <small>de ${fmt(alvo)}</small></div>
       <div class="track"><div class="fill" style="width:${(pct*100).toFixed(1)}%"></div></div>
       <div class="meta"><span>${Math.round(pct*100)}% · falta ${fmt(falta)}</span><span>${m.prazo?"até "+esc(monthName(m.prazo,{month:"short",year:"numeric"}).replace(".","")):"sem prazo"}</span></div>
-      ${+m.aporte>0&&falta>0?`<div class="meta"><span>Aporte de ${fmt(m.aporte)}/mês sai do salário</span></div>`:sug?`<div class="meta"><span>Sugestão: guardar ${esc(sug)}</span></div>`:""}</button>`; };
+      ${noMes?`<div class="meta"><span>${noMes>0?"Guardado":"Retirado"} em ${esc(monthName(S.month,{month:"short"}).replace(".",""))}: <b style="color:var(--text)">${fmt(Math.abs(noMes))}</b></span><span>${noMes>0?"saiu do salário":"voltou ao salário"}</span></div>`:""}
+      ${+m.aporte>0&&falta>0?`<div class="meta"><span>Guarda ${fmt(m.aporte)} todo mês automaticamente</span></div>`:sug&&!noMes?`<div class="meta"><span>Sugestão: guardar ${esc(sug)}</span></div>`:""}</button>`; };
   const fixaCard = d => { const ativa=fixaAtiva(d,S.month);
     return `<button class="goal ${(d.quem||"casal")==="b"?"own-b":(d.quem||"casal")==="a"?"own-a":"own-c"}" data-divida="${esc(d.id)}"><div class="meta" style="color:var(--text)"><h3>${esc(d.nome)}</h3>${quemChip(d.quem||"casal")}</div>
       <div class="big">${fmt(d.parcela)} <small>por mês</small></div>
@@ -1080,7 +1087,7 @@ function salarioCard(s){
       <div class="sal-big ${p.livre<0?"neg":""}">${fmt(p.livre)}</div><span class="label">Livre no mês</span>
       <div class="track" style="margin:10px 0 12px"><div class="fill" style="width:${(pct*100).toFixed(1)}%"></div></div>
       ${linha("Salário",p.sal,false)}${p.extra?linha("Outras receitas",p.extra,false):""}
-      ${linha("Contas fixas",p.fixas)}${linha("Parcelas",p.parcelas)}${linha("Metas",p.metas)}${linha("Gastos pagos à vista",p.gastos)}
+      ${linha("Contas fixas",p.fixas)}${linha("Parcelas",p.parcelas)}${p.metas<0?`<div class="sal-row"><span>Retirado de metas</span><span class="num pos">+ ${fmt(-p.metas)}</span></div>`:linha("Guardado em metas",p.metas)}${linha("Gastos pagos à vista",p.gastos)}
       ${cartoesDe(k,"credito").length?linha("Faturas de cartão",p.faturas):""}
       <div class="sal-row"><span>Acerto do mês</span><span class="num ${p.acerto>0.005?"pos":p.acerto<-0.005?"neg":""}">${Math.abs(p.acerto)<0.005?"—":(p.acerto>0?"+ ":"− ")+fmt(Math.abs(p.acerto))}</span></div>
       ${p.vales.map(v=>`<div class="sal-row vale-row"><span>${esc(v.nome)} <small>(vale)</small></span><span class="num">saldo ${fmt(v.saldo)}</span></div>`).join("")}</div>`; };
@@ -1241,34 +1248,100 @@ function txModal(id){
   });
 }
 
+// ---------- Metas: dinheiro guardado com data (sai do salário do mês) ----------
+// Linha do tempo da meta até o mês `ate`: base (guardado antes do app) + depósitos/retiradas + aporte automático mensal
+function metaLinha(m, ate=CUR()){
+  const legado = !Array.isArray(m.depositos);
+  const base = legado ? (+m.guardado||0) : (+m.base||0);
+  const deps = (m.depositos||[]).filter(d=>d && d.data && monthKey(d.data)<=ate);
+  const alvo=+m.alvo||0, ap=+m.aporte||0, ini=m.aporteInicio||"";
+  const meses=new Set(deps.map(d=>monthKey(d.data)));
+  if(ap>0 && ini){ let M=ini; while(M<=ate){ meses.add(M); M=addMonths(M,1); } }
+  let tot=base; const mov=[];
+  for(const M of [...meses].sort()){
+    for(const d of deps.filter(d=>monthKey(d.data)===M).sort((a,b)=>a.data.localeCompare(b.data))){ tot+=+d.valor||0; mov.push({...d,mes:M,auto:false}); }
+    if(ap>0 && ini && M>=ini && (!m.prazo || M<=m.prazo)){ const v=Math.min(ap, Math.max(0,alvo-tot)); if(v>0.004){ tot+=v; mov.push({data:`${M}-01`,valor:Math.round(v*100)/100,quem:m.quem||"casal",mes:M,auto:true}); } }
+  }
+  return {base, mov, total:tot};
+}
+const metaGuardado = m => metaLinha(m, CUR()).total;
+// Quanto cada pessoa guardou (ou retirou) nas metas no mês mk — entra no salário do mês
+function metasNoMes(mk, share){
+  const r={a:0,b:0};
+  for(const m of S.metas){ for(const d of metaLinha(m,mk).mov){ if(d.mes!==mk) continue; const v=+d.valor||0, q=d.quem||m.quem||"casal";
+    if(q==="casal"){ r.a+=v*share("a"); r.b+=v*share("b"); } else r[q==="b"?"b":"a"]+=v; } }
+  return r;
+}
+// Metas antigas (sem histórico): o que já estava guardado vira um depósito deste mês, e o aporte vira automático a partir deste mês
+let migrandoMetas=false;
+async function migrarMetas(){
+  if(migrandoMetas || S.readOnly || S.mode!=="db") return;
+  const velhas=S.metas.filter(m=>!Array.isArray(m.depositos)); if(!velhas.length) return;
+  migrandoMetas=true;
+  for(const m of velhas){ const {id,...doc}=m; const g=+m.guardado||0;
+    doc.base=0; doc.depositos = g>0 ? [{data:todayISO(), valor:g, quem:m.quem||"casal"}] : [];
+    doc.aporteInicio = (+m.aporte>0) ? (m.aporteInicio||CUR()) : ""; delete doc.guardado;
+    try{ await put("metas", id, doc); }catch(e){} }
+  migrandoMetas=false;
+}
+
 function metaModal(id, quemNovo){
-  const ex = id? S.metas.find(m=>m.id===id):null; const m = ex || {nome:"",alvo:"",guardado:"",prazo:"",aporte:"",quem:quemNovo||"casal"}; const ro=S.readOnly;
+  const ex = id? S.metas.find(m=>m.id===id):null;
+  const m = ex || {nome:"",alvo:"",prazo:"",aporte:"",quem:quemNovo||"casal",base:0,depositos:[]}; const ro=S.readOnly;
   const n = v => v!==""&&v!=null&&+v ? String(v).replace(".",",") : "";
+  const L = metaLinha(m, CUR());
+  const mesMov = S.month===CUR() ? todayISO() : `${S.month}-01`;
+  const hist = [...L.mov].reverse().slice(0,8);
+  const quemTxt = q => q==="casal" ? "dividido entre os dois" : nome(q);
   openModal(`<h2>${ex?"Editar meta":"Nova meta"}<button class="x" data-close aria-label="Fechar">×</button></h2>
+    ${ex?`<div class="fat-tot"><span class="label">Guardado até agora</span><b>${fmt(L.total)}</b><small>de ${fmt(m.alvo)} · falta ${fmt(Math.max(0,(+m.alvo||0)-L.total))}</small></div>`:""}
     <form class="form" id="mf" novalidate>
       <div class="field full"><label for="m-nome">Meta</label><input id="m-nome" maxlength="60" placeholder="Ex.: Viagem de fim de ano" value="${esc(m.nome)}"></div>
       <div class="field full"><span class="lbl">De quem é a meta</span>${quemSeg("mquem",m.quem||"casal")}</div>
       <div class="field"><label for="m-alvo">Valor desejado (R$)</label><input id="m-alvo" inputmode="decimal" value="${n(m.alvo)}"></div>
-      <div class="field"><label for="m-g">Já guardado (R$)</label><input id="m-g" inputmode="decimal" value="${n(m.guardado)}"></div>
-      <div class="field"><label for="m-prazo">Prazo</label><input id="m-prazo" type="month" value="${esc(m.prazo)}"></div>
-      <div class="field"><label for="m-ap">Aporte mensal (R$)</label><input id="m-ap" inputmode="decimal" placeholder="Opcional" value="${n(m.aporte)}"></div>
+      <div class="field"><label for="m-prazo">Prazo</label><input id="m-prazo" type="month" value="${esc(m.prazo||"")}"></div>
+      <div class="field full pf-sep"><span class="lbl">Movimentar agora</span><div class="seg">
+        <input type="radio" name="mmov" id="mm-g" value="guardar" checked><label for="mm-g">Guardar</label>
+        <input type="radio" name="mmov" id="mm-r" value="retirar"><label for="mm-r">Retirar</label></div></div>
+      <div class="field"><label for="m-add">Valor (R$)</label><input id="m-add" inputmode="decimal" placeholder="0,00"></div>
+      <div class="field"><label for="m-data">Data</label><input id="m-data" type="date" value="${esc(mesMov)}"></div>
+      <div class="field full" id="m-dquem-wrap"><span class="lbl">Quem está guardando</span>${quemSeg("mdquem", (m.quem||"casal")==="casal" ? (euSou()||"casal") : m.quem)}</div>
+      <div class="field full"><div class="help" id="m-mov-help"></div></div>
+      <div class="field full pf-sep"><label for="m-ap">Guardar automaticamente todo mês (R$)</label><input id="m-ap" inputmode="decimal" placeholder="Opcional" value="${n(m.aporte)}"></div>
       <div class="field full" id="m-sug-wrap" hidden><div class="help" id="m-sug"></div></div>
-      <div class="field full"><label for="m-add">Guardar mais agora (R$)</label><input id="m-add" inputmode="decimal" placeholder="Soma ao já guardado"></div>
+      ${!ex?`<div class="field full"><label for="m-base">Já tinha guardado antes (R$)</label><input id="m-base" inputmode="decimal" placeholder="0,00"><div class="help" style="margin-top:8px">Dinheiro que já estava guardado antes de usar o app. Esse valor não sai do salário.</div></div>`:""}
+      ${hist.length?`<div class="field full"><span class="lbl">Últimas movimentações</span><div class="meta-hist">${hist.map(d=>`<div class="mh-row"><span>${fmtData(d.data)} · ${d.auto?"Automático":esc(quemTxt(d.quem||m.quem||"casal"))}</span><b class="${+d.valor<0?"neg":""}">${+d.valor<0?"− ":"+ "}${fmt(Math.abs(+d.valor))}</b>${!d.auto&&!ro?`<button type="button" class="mh-del" data-mh="${esc(d.data)}|${esc(d.valor)}|${esc(d.quem||"")}" aria-label="Apagar movimentação">×</button>`:"<span></span>"}</div>`).join("")}</div></div>`:""}
       <div class="full err" id="m-err" hidden></div>
     </form>
     <div class="sheet-actions"><div>${ex&&!ro?`<button class="btn danger" id="m-del">Excluir</button>`:""}</div>
-      <div class="row-actions"><button class="btn" data-close>Cancelar</button>${ro?"":`<button class="btn primary" id="m-save">Salvar</button>`}</div></div>`, ov=>{
+      <div class="row-actions"><button class="btn ghost" data-close>Cancelar</button>${ro?"":`<button class="btn primary" id="m-save">Salvar</button>`}</div></div>`, ov=>{
     if(ro) ov.querySelectorAll("input").forEach(i=>i.disabled=true);
-    const sug=()=>{ const alvo=parseMoney($("#m-alvo").value), g=parseMoney($("#m-g").value)||0, pr=$("#m-prazo").value, w=$("#m-sug-wrap");
-      if(!(alvo>0)||!pr){ w.hidden=true; return; } const falta=Math.max(alvo-g,0), k=mdiff(CUR(),pr)+1; w.hidden=false;
-      $("#m-sug").textContent = falta<=0 ? "Meta já alcançada!" : k>0 ? `Para chegar no prazo, guardem cerca de ${fmt(falta/k)} por mês durante ${k} ${k===1?"mês":"meses"}. O aporte mensal sai do salário de quem é a meta.` : "O prazo já passou. Escolha uma nova data."; };
-    ["m-alvo","m-g","m-prazo"].forEach(i=>$("#"+i).addEventListener("input",sug)); sug();
-    const save=async()=>{ const nomeM=$("#m-nome").value.trim(), alvo=parseMoney($("#m-alvo").value); let g=parseMoney($("#m-g").value); if(isNaN(g)) g=0; const add=parseMoney($("#m-add").value); if(add>0) g+=add;
-      if(!nomeM||!(alvo>0)){ const e=$("#m-err"); e.hidden=false; e.textContent="Dê um nome e um valor desejado maior que zero."; return; }
-      const ap=parseMoney($("#m-ap").value);
-      try{ await put("metas", ex?ex.id:newId(), {nome:nomeM, quem:$("#mf [name=mquem]:checked").value, alvo:Math.round(alvo*100)/100, guardado:Math.round(g*100)/100, prazo:$("#m-prazo").value||"", aporte:ap>0?Math.round(ap*100)/100:0}); closeModal(); toast("Meta salva"); }catch(e){} };
-    $("#m-save")?.addEventListener("click",save); $("#mf").addEventListener("submit",e=>{e.preventDefault();save();});
-    const d=$("#m-del"); d && armDelete(d, async()=>{ try{ await del("metas",ex.id); closeModal(); toast("Meta excluída"); }catch(e){} });
+    const val = nm => (ov.querySelector(`[name=${nm}]:checked`)||{}).value;
+    const movHelp=()=>{ const v=parseMoney($("#m-add").value), dt=$("#m-data").value||todayISO(), q=val("mdquem")||"casal", r=val("mmov")==="retirar";
+      $("#m-dquem-wrap").querySelector(".lbl").textContent = r ? "Quem está retirando" : "Quem está guardando";
+      $("#m-mov-help").textContent = v>0 ? (r ? `${fmt(v)} voltam para o salário de ${q==="casal"?"vocês dois (dividido)":nome(q)} em ${monthName(monthKey(dt))}.` : `${fmt(v)} saem do salário de ${q==="casal"?"vocês dois (dividido)":nome(q)} em ${monthName(monthKey(dt))}.`) : "O valor guardado sai do salário do mês escolhido. Ao retirar, ele volta para o salário."; };
+    ["m-add","m-data"].forEach(i=>$("#"+i).addEventListener("input",movHelp)); ov.querySelectorAll("[name=mmov],[name=mdquem]").forEach(r=>r.addEventListener("change",movHelp)); movHelp();
+    const sug=()=>{ const addV=parseMoney($("#m-add").value)||0, alvo=parseMoney($("#m-alvo").value), g=L.total+(parseMoney($("#m-base")?.value)||0)+(val("mmov")==="retirar"?-addV:addV), pr=$("#m-prazo").value, ap=parseMoney($("#m-ap").value), w=$("#m-sug-wrap");
+      if(!(alvo>0)){ w.hidden=true; return; } const falta=Math.max(alvo-g,0); w.hidden=false;
+      if(falta<=0){ $("#m-sug").textContent="Meta já alcançada!"; return; }
+      if(ap>0){ const meses=Math.ceil(falta/ap); $("#m-sug").textContent=`Guardando ${fmt(ap)} por mês, a meta fica completa em ${meses} ${meses===1?"mês":"meses"} (${monthName(addMonths(CUR(),meses-1))}). O valor sai sozinho do salário de quem é a meta todo mês, até completar.`; return; }
+      if(pr){ const k=mdiff(CUR(),pr)+1; $("#m-sug").textContent = k>0 ? `Para chegar no prazo, guardem cerca de ${fmt(falta/k)} por mês durante ${k} ${k===1?"mês":"meses"}.` : "O prazo já passou. Escolha uma nova data."; return; }
+      w.hidden=true; };
+    ["m-alvo","m-prazo","m-ap","m-base","m-add"].forEach(i=>{ const el=$("#"+i); el && el.addEventListener("input",sug); }); ov.querySelectorAll("[name=mmov]").forEach(r=>r.addEventListener("change",sug)); sug();
+    let deps=[...(m.depositos||[])];
+    ov.querySelectorAll("[data-mh]").forEach(b=>b.addEventListener("click",()=>{ const [dt,vl,qq]=b.dataset.mh.split("|"); const i=deps.findIndex(d=>d.data===dt && String(d.valor)===vl && (d.quem||"")===qq); if(i>=0){ deps.splice(i,1); b.closest(".mh-row").remove(); toast("Movimentação removida. Toque em Salvar para confirmar."); } }));
+    const save=async()=>{ const e=$("#m-err"); const nomeM=$("#m-nome").value.trim(), alvo=parseMoney($("#m-alvo").value);
+      if(!nomeM||!(alvo>0)){ e.hidden=false; e.textContent="Dê um nome e um valor desejado maior que zero."; return; }
+      const add=parseMoney($("#m-add").value);
+      if(add>0){ const r=val("mmov")==="retirar"; if(r && add>metaLinha({...m,depositos:deps},CUR()).total+0.004){ e.hidden=false; e.textContent="Não dá para retirar mais do que está guardado."; return; }
+        deps.push({data:$("#m-data").value||todayISO(), valor:Math.round((r?-add:add)*100)/100, quem:val("mdquem")||"casal"}); }
+      const ap=parseMoney($("#m-ap").value), apV=ap>0?Math.round(ap*100)/100:0;
+      const doc={nome:nomeM, quem:val("mquem"), alvo:Math.round(alvo*100)/100, prazo:$("#m-prazo").value||"",
+        base: ex ? (Array.isArray(m.depositos)?(+m.base||0):(+m.guardado||0)) : Math.round((parseMoney($("#m-base")?.value)||0)*100)/100,
+        depositos:deps, aporte:apV, aporteInicio: apV>0 ? ((ex && +ex.aporte>0 && ex.aporteInicio) ? ex.aporteInicio : CUR()) : ""};
+      try{ await put("metas", ex?ex.id:newId(), doc); closeModal(); toast(add>0?(val("mmov")==="retirar"?"Valor retirado da meta":"Valor guardado na meta"):"Meta salva"); }catch(x){} };
+    $("#m-save")?.addEventListener("click",save); $("#mf").addEventListener("submit",ev=>{ev.preventDefault();save();});
+    const d=$("#m-del"); d && armDelete(d, async()=>{ try{ await del("metas",ex.id); closeModal(); toast("Meta excluída"); }catch(x){} });
   });
 }
 
