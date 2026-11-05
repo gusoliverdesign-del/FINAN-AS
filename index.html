@@ -344,6 +344,27 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .pf-det[open] summary::before{transform:rotate(90deg)}
 .pf-dicas{display:grid;gap:8px;margin-top:10px;font-size:13px;color:var(--muted)}
 .pf-dicas p{margin:0;line-height:1.55} .pf-dicas b{color:var(--text)}
+.kpi-btn{text-align:left;width:100%;font:inherit;color:inherit;cursor:pointer}
+.kpi-btn:hover{border-color:var(--line3)}
+.kpi-more{float:right;letter-spacing:.06em;color:var(--accent-ink);opacity:.85}
+.ess-pie{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:18px}
+.ess-pie svg{width:170px;height:170px;flex:none}
+.ess-pie circle{transition:stroke-dasharray .5s ease}
+.pie-sim{stroke:var(--accent)} .pie-nao{stroke:var(--outline)}
+.pie-sim-bg{background:var(--accent)} .pie-nao-bg{background:var(--outline)}
+.bar-row .fill.pie-nao-bg{background:var(--outline)}
+.pie-n{font:600 30px var(--display);fill:var(--text);letter-spacing:-.04em}
+.pie-l{font:400 10px var(--mono);fill:var(--faint);letter-spacing:.12em;text-transform:uppercase}
+.ess-leg{display:grid;gap:10px;font-size:13px;color:var(--muted)}
+.ess-leg span{display:flex;align-items:center;gap:8px}
+.ess-leg b{color:var(--text);font:500 13px var(--mono);margin-left:4px}
+.ess-grupo{border-top:1px solid var(--line);padding:16px 0 6px;display:grid;gap:12px}
+.ess-gh{display:flex;align-items:baseline;gap:10px}
+.ess-gh span{display:flex;align-items:center;gap:8px;font-weight:600;margin-right:auto}
+.ess-gh b{font:600 18px var(--display);letter-spacing:-.02em}
+.ess-gh small{color:var(--faint);font:400 11px var(--mono)}
+@media (max-width:560px){ .ess-pie{flex-direction:column;justify-content:center} .ess-pie svg{width:180px;height:180px} .ess-leg{width:100%;justify-items:center} }
+.ess-det summary{font-size:13px;color:var(--muted)}
 .who-chip{display:inline-flex;align-items:center;font:600 11px/1.4 var(--f-body);color:#111;background:var(--line2);border-radius:99px;padding:3px 10px;white-space:nowrap}
 .who-chip.a{background:var(--a-solid)} .who-chip.b{background:var(--b-solid)}
 .who-chip.c{background:linear-gradient(90deg,var(--a-solid) 0 50%,var(--b-solid) 50% 100%)}
@@ -953,7 +974,7 @@ function vPainel(){
     <div class="card kpi"><div class="label">Receitas</div><div class="v pos">${fmt(s.rec)}</div><div class="hint">${esc(A)} ${fmt(s.rA.a)} · ${esc(B)} ${fmt(s.rA.b)}</div></div>
     <div class="card kpi"><div class="label">Despesas</div><div class="v">${fmt(s.desp)}</div><div class="hint">${s.tx.filter(l=>l.tipo!=="Receita").length} lançamentos</div></div>
     <div class="card kpi"><div class="label">Saldo do mês</div><div class="v ${s.saldo<0?"neg":"pos"}">${fmt(s.saldo)}</div><div class="hint">${s.rec?`${Math.round(s.saldo/s.rec*100)}% da renda`:"sem receitas lançadas"}</div></div>
-    <div class="card kpi"><div class="label">Essenciais</div><div class="v">${essPct}%</div><div class="hint">${fmt(s.ess)} das despesas</div></div>
+    <button class="card kpi kpi-btn" data-essenciais aria-label="Ver gráfico dos essenciais"><div class="label">Essenciais <span class="kpi-more">Ver gráfico ›</span></div><div class="v">${essPct}%</div><div class="hint">${fmt(s.ess)} das despesas</div></button>
   </section>
   ${salarioCard(s)}
   <section class="grid g-2">
@@ -1602,6 +1623,36 @@ function vRel(){
     ${top.length?`<section class="card"><h2>Maiores gastos do mês</h2><div class="tx-list">${top.map(txRow).join("")}</div></section>`:""}`;
 }
 
+// ---------- Essenciais: gráfico de rosca ----------
+function essenciaisModal(){
+  const mk=S.month, s=summary(mk);
+  const desp=s.tx.filter(l=>l.tipo!=="Receita");
+  const grupos={sim:desp.filter(l=>l.essencial), nao:desp.filter(l=>!l.essencial)};
+  const soma=a=>a.reduce((t,l)=>t+(+l.valor||0),0);
+  const tS=soma(grupos.sim), tN=soma(grupos.nao), tot=tS+tN, pS=tot?tS/tot:0;
+  const R=70, C=2*Math.PI*R, gap=tS&&tN?3:0;
+  const arc=(frac,off,cls)=>frac>0?`<circle class="${cls}" r="${R}" cx="90" cy="90" fill="none" stroke-width="18" stroke-dasharray="${Math.max(0,frac*C-gap)} ${C}" stroke-dashoffset="${-off*C}" transform="rotate(-90 90 90)"/>`:"";
+  const porCat=a=>{ const m={}; a.forEach(l=>{ const c=normCat(l.categoria); m[c]=(m[c]||0)+(+l.valor||0); }); return Object.entries(m).sort((x,y)=>y[1]-x[1]); };
+  const bloco=(key,titulo,arr,total,cls)=>{ const cats=porCat(arr); const max=cats.length?cats[0][1]:1;
+    return `<div class="ess-grupo"><div class="ess-gh"><span><i class="sw ${cls}"></i>${titulo}</span><b>${fmt(total)}</b><small>${tot?Math.round(total/tot*100):0}%</small></div>
+      ${cats.length?`<div class="bars">${cats.map(([c,v])=>`<div class="bar-row"><span>${esc(c)}</span><span class="amt">${fmt(v)}<small>${Math.round(v/(total||1)*100)}%</small></span><div class="track"><div class="fill ${cls}" style="width:${(v/max*100).toFixed(1)}%"></div></div></div>`).join("")}</div>
+      <details class="pf-det ess-det"><summary>Ver os ${arr.length} lançamentos</summary><div class="tx-list" style="margin-top:8px">${[...arr].sort((a,b)=>(+b.valor||0)-(+a.valor||0)).map(txRow).join("")}</div></details>`
+      :`<p class="rel-note" style="margin:6px 0 0">Nada neste grupo em ${esc(monthName(mk,{month:"long"}))}.</p>`}</div>`; };
+  openModal(`<h2>Essenciais<button class="x" data-close aria-label="Fechar">×</button></h2>
+    <p class="rel-note" style="margin:-12px 0 18px">${esc(cap(monthName(mk)))} · ${fmt(tot)} em despesas</p>
+    ${tot?`<div class="ess-pie"><svg viewBox="0 0 180 180" role="img" aria-label="${Math.round(pS*100)}% das despesas foram essenciais">
+        <circle r="${R}" cx="90" cy="90" fill="none" stroke="var(--track)" stroke-width="18"/>
+        ${arc(pS,0,"pie-sim")}${arc(1-pS,pS,"pie-nao")}
+        <text x="90" y="88" text-anchor="middle" class="pie-n">${Math.round(pS*100)}%</text><text x="90" y="108" text-anchor="middle" class="pie-l">essenciais</text></svg>
+      <div class="ess-leg"><span><i class="sw pie-sim-bg"></i>Essenciais <b>${fmt(tS)}</b></span><span><i class="sw pie-nao-bg"></i>Não essenciais <b>${fmt(tN)}</b></span></div></div>
+      ${bloco("sim","Essenciais",grupos.sim,tS,"pie-sim-bg")}${bloco("nao","Não essenciais",grupos.nao,tN,"pie-nao-bg")}
+      <p class="rel-note">Contas fixas e parcelas contam como essenciais. Nos lançamentos, mude “Essencial?” para Não em lazer, compras e presentes, e toque num lançamento acima para corrigir.</p>`
+      :`<div class="empty"><b>Sem despesas neste mês</b>Quando houver lançamentos, a divisão entre essenciais e não essenciais aparece aqui.</div>`}
+    <div class="sheet-actions"><span></span><div class="row-actions"><button class="btn ghost" data-close>Fechar</button></div></div>`, ov=>{
+    ov.querySelectorAll(".tx[data-edit]").forEach(b=>b.addEventListener("click",()=>{ const id=b.dataset.edit; closeModal(); if(id.startsWith("auto:sal:")) perfilModal(); else if(id.startsWith("auto:div:")) dividaModal(id.slice(9)); else if(id.startsWith("auto:vale:")) cartaoModal(id.slice(10)); else txModal(id); }));
+  });
+}
+
 let toastT; function toast(msg){ let t=$(".toast"); if(!t){ t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); document.body.appendChild(t);} t.textContent=msg; clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2800); }
 
 const quemNovo = () => (S.contasAba||"casal")==="casal" ? "casal" : ((S.contasQuem===undefined ? euSou() : S.contasQuem) || euSou() || "a");
@@ -1615,6 +1666,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape" && $("#ov")) closeM
 $("#main").addEventListener("click",e=>{
   if(e.target.closest("[data-logout-inline]")){ window.FB.signOut(window.FB.auth); return; }
   if(e.target.closest("[data-abrir-perfil]")){ perfilModal(); return; }
+  if(e.target.closest("[data-essenciais]")){ essenciaisModal(); return; }
   const gc=e.target.closest("[data-goto-cat]"); if(gc){ S.filt={tipo:"",quem:"",cat:gc.dataset.gotoCat,q:""}; location.hash="#lancamentos"; return; }
   const ct=e.target.closest("[data-cartao]"); if(ct){ cartaoModal(ct.dataset.cartao); return; }
   const nc=e.target.closest("[data-novo-cartao]"); if(nc){ cartaoModal(null, nc.dataset.novoCartao); return; }
