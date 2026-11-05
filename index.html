@@ -301,6 +301,36 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .seg input{opacity:0!important}
 .field .seg input:disabled + label{cursor:not-allowed;opacity:.45}
 .field .seg input:disabled:checked + label{opacity:1}
+.rel-rows{display:grid;gap:8px}
+.rel-row{background:var(--panel2);border:1px solid var(--cardline);border-radius:12px;padding:14px 16px;display:grid;gap:10px;min-width:0}
+.rel-row.total{background:transparent;border-style:dashed}
+.rel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rel-head > b{font:600 20px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.rel-head > span{font-weight:600}
+.rel-nome{font:600 15px var(--display);margin-right:6px}
+.rel-row .rel-bar{margin:0;max-width:none}
+.rel-split{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rel-split span{display:grid;gap:3px;font-size:11.5px;color:var(--faint);min-width:0}
+.rel-split em{font-style:normal;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rel-split em .sw{flex:none}
+.rel-split b{font:500 13px var(--mono);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:400px){ .rel-split b{font-size:12px} }
+.rel-scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+.rel-table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+.rel-table th{text-align:left;font:400 10px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.rel-table td{padding:12px 8px;border-bottom:1px solid var(--line);vertical-align:middle;color:var(--soft)}
+.rel-table tfoot td{border-bottom:0;font-weight:600;color:var(--text)}
+.rel-table .r{text-align:right}
+.rel-table td.num{font:500 12.5px var(--mono);white-space:nowrap}
+.rel-table td.num b{color:var(--text)}
+.rel-table td:first-child{min-width:150px}
+.rel-table td:first-child b{color:var(--text);margin-right:6px}
+.rel-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--track);margin-top:8px;max-width:220px}
+.rel-bar i{display:block;height:100%}
+.f-vista{background:var(--soft)} .f-cartao{background:var(--red)} .f-vale{background:var(--warn)}
+.sw.f-vista{background:var(--soft)} .sw.f-cartao{background:var(--red)} .sw.f-vale{background:var(--warn)}
+.rel-note{color:var(--faint);font-size:13px;margin:12px 0 0}
+.kpi .hint .pos{color:var(--pos)} .kpi .hint .neg{color:var(--red-soft)}
 .who-chip{display:inline-flex;align-items:center;font:600 11px/1.4 var(--f-body);color:#111;background:var(--line2);border-radius:99px;padding:3px 10px;white-space:nowrap}
 .who-chip.a{background:var(--a-solid)} .who-chip.b{background:var(--b-solid)}
 .who-chip.c{background:linear-gradient(90deg,var(--a-solid) 0 50%,var(--b-solid) 50% 100%)}
@@ -461,6 +491,7 @@ body.locked{overflow:hidden}
       <a href="#lancamentos">Lançamentos</a>
       <a href="#orcamento">Orçamento</a>
       <a href="#metas">Contas e metas</a>
+      <a href="#relatorio">Relatório</a>
       <a href="#ajustes">Ajustes</a>
     </nav>
     <div class="side-sep"></div>
@@ -496,7 +527,7 @@ body.locked{overflow:hidden}
     <a class="tb-btn" href="#lancamentos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg><span>Extrato</span></a>
     <a class="tb-btn" href="#orcamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5a9 9 0 0 1 5.5 5.5H15z"/></svg><span>Orçamento</span></a>
     <a class="tb-btn" href="#metas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg><span>Contas</span></a>
-    <a class="tb-btn" href="#ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg><span>Ajustes</span></a>
+    <a class="tb-btn" href="#relatorio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Relatório</span></a>
   </div>
   <button class="tb-fab glass" id="fab2" aria-label="Novo lançamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 </nav>
@@ -574,7 +605,7 @@ const CAT_DESP = ["Moradia","Alimentação","Transporte","Saúde","Contas","Assi
 const PAGAMENTOS = ["Pix","Cartão de crédito","Cartão de débito","Dinheiro","Transferência","Boleto","Outro"];
 const PRIOS = ["Alta","Média","Baixa"];
 const DEF_CONFIG = { nomeA:"Pessoa 1", nomeB:"Pessoa 2", divisao:"igual" };
-const VIEWS = ["painel","lancamentos","orcamento","metas","ajustes"];
+const VIEWS = ["painel","lancamentos","orcamento","metas","relatorio","ajustes"];
 
 // ---------- Utilidades ----------
 const brl = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
@@ -846,7 +877,7 @@ function summary(mk=S.month){
 function render(){
   const v = S.view; aplicarCor();
   document.querySelectorAll("#tabs a,.tb-btn").forEach(a=>a.setAttribute("aria-current", a.getAttribute("href")==="#"+v ? "page":"false"));
-  $("#tb-ind").style.transform = `translateX(calc(4px + ${VIEWS.indexOf(v)*100}%))`;
+  { const tbs=[...document.querySelectorAll(".tb-btn")], ti=tbs.findIndex(a=>a.getAttribute("href")==="#"+v), ind=$("#tb-ind"); ind.style.opacity = ti<0?0:1; if(ti>=0) ind.style.transform = `translateX(calc(4px + ${ti*100}%))`; }
   $("#m-label").textContent = cap(monthName(S.month));
   $("#brand-role").textContent = `${nome("a")} & ${nome("b")} · ${S.month.slice(0,4)}`;
   { const sm=summary(); const d=Math.abs(sm.saldoA)>=0.01;
@@ -858,11 +889,11 @@ function render(){
   $("#fab").hidden = S.readOnly; $("#fab2").hidden = S.readOnly;
   let notes = "";
   if(S.stale) notes += `<div class="note" data-kind="warn">Sem conexão com o servidor agora. Você vê os dados salvos neste aparelho, e o que lançar sincroniza quando a internet voltar.</div>`;
-  const body = {painel:vPainel,lancamentos:vLanc,orcamento:vOrc,metas:vMetas,ajustes:vAjustes}[v]();
+  const body = {painel:vPainel,lancamentos:vLanc,orcamento:vOrc,metas:vMetas,relatorio:vRel,ajustes:vAjustes}[v]();
   const active = document.activeElement; const keepId = active && active.id && $("#main").contains(active) ? active.id : null;
   const selStart = keepId && active.selectionStart;
-  const TIT={painel:"Painel",lancamentos:"Lançamentos",orcamento:"Orçamento",metas:"Contas, dívidas e metas",ajustes:"Ajustes"};
-  const DESC={painel:"Resumo do mês, o acerto entre vocês e para onde foi o dinheiro.",lancamentos:"Todas as receitas e despesas do mês. Toque em um lançamento para editar.",orcamento:"Quanto vocês planejam gastar por categoria e quanto já foi.",metas:"Contas que se repetem todo mês, parcelas que avançam sozinhas e o que vocês estão juntando.",ajustes:"Nomes, salários, forma de dividir os gastos e dicas de uso."};
+  const TIT={painel:"Painel",lancamentos:"Lançamentos",orcamento:"Orçamento",metas:"Contas, dívidas e metas",relatorio:"Relatório do mês",ajustes:"Ajustes"};
+  const DESC={painel:"Resumo do mês, o acerto entre vocês e para onde foi o dinheiro.",lancamentos:"Todas as receitas e despesas do mês. Toque em um lançamento para editar.",orcamento:"Quanto vocês planejam gastar por categoria e quanto já foi.",metas:"Contas que se repetem todo mês, parcelas que avançam sozinhas e o que vocês estão juntando.",relatorio:"Quanto cada um gastou sozinho e quanto foi do casal, e se foi pago à vista, no cartão ou no vale.",ajustes:"Nomes, salários, cartões, forma de dividir os gastos e dicas de uso."};
   $("#main").innerHTML = `<header class="page-head"><div><span class="eyebrow">${esc(monthName(S.month))} · ${esc(nome("a"))} & ${esc(nome("b"))}</span><h1>${TIT[v]}</h1><p>${DESC[v]}</p></div></header>` + notes + body;
   if(v==="ajustes") salTotais();
   if(keepId){ const el=document.getElementById(keepId); if(el){ el.focus(); try{ if(selStart!=null) el.setSelectionRange(selStart,selStart);}catch(e){} } }
@@ -1343,6 +1374,7 @@ function perfilModal(){
         <p class="pf-note">O tema vale só para o seu acesso. ${esc(outro)} continua com o tema que escolher.</p></div>
       <div class="full err" id="pf-err" hidden></div>
     </form>
+    <div class="row-actions" style="justify-content:flex-start;margin:4px 0 0"><a class="btn ghost small" href="#ajustes" data-close>Ajustes do casal, cartões e vales</a></div>
     <div class="sheet-actions"><button class="btn ghost" type="button" data-pf-sair>Sair da conta</button>
       <div class="row-actions"><button class="btn ghost" data-close>Cancelar</button>${S.readOnly?"":`<button class="btn primary" id="pf-save">Salvar perfil</button>`}</div></div>`, ov=>{
     modalOnClose = () => { temaPreview=null; aplicarCor(); };
@@ -1468,6 +1500,64 @@ function faturaModal(id, M){
     ov.querySelectorAll("[data-fat-mes]").forEach(b=>b.addEventListener("click",()=>faturaModal(id,b.dataset.fatMes)));
     ov.querySelectorAll("[data-fat-item]").forEach(b=>b.addEventListener("click",()=>{ const sid=b.dataset.fatItem; closeModal(); if(sid.startsWith("auto:div:")) dividaModal(sid.slice(9)); else if(!sid.startsWith("auto:")) txModal(sid); }));
   });
+}
+
+// ---------- Relatório ----------
+function relDados(mk){
+  const tx=monthTx(mk).filter(l=>l.tipo!=="Receita");
+  const M={vista:0,cartao:0,vale:0};
+  const por={a:{...M},b:{...M},casal:{...M}}, pagou={a:{...M},b:{...M}}, cat={}, cartoesMes={};
+  const itens=[];
+  for(const l of tx){ const v=+l.valor||0; const card=cardOf(l); const forma=card?(card.tipo==="vale"?"vale":"cartao"):"vista";
+    const q=l.quem==="b"?"b":l.quem==="casal"?"casal":"a";
+    let dono, pagador;
+    if(l.auto){ dono=q; pagador=card?card.dono:(q==="casal"?null:q); }
+    else { pagador=card?card.dono:(q==="casal"?"a":q); dono = l.divisao==="individual" ? pagador : l.divisao==="outro" ? outroDe(pagador) : "casal"; }
+    por[dono][forma]+=v;
+    if(pagador) pagou[pagador][forma]+=v; else { pagou.a[forma]+=v/2; pagou.b[forma]+=v/2; }
+    const ck=normCat(l.categoria); cat[ck]=cat[ck]||{a:0,b:0,casal:0}; cat[ck][dono]+=v;
+    if(card){ cartoesMes[card.id]=(cartoesMes[card.id]||0)+v; }
+    itens.push({...l,dono,forma,v});
+  }
+  const tot=o=>o.vista+o.cartao+o.vale;
+  return {por,pagou,cat,cartoesMes,itens,tot,total:tot(por.a)+tot(por.b)+tot(por.casal)};
+}
+function vRel(){
+  const mk=S.month, R=relDados(mk), P=relDados(addMonths(mk,-1)); const A=nome("a"),B=nome("b");
+  const var_ = (a,b) => !b ? "" : (()=>{ const d=(a-b)/b*100; return `<span class="${d>0?"neg":"pos"}">${d>0?"+":""}${Math.round(d)}%</span> vs ${esc(monthName(addMonths(mk,-1),{month:"short"}).replace(".",""))}`; })();
+  const kpi=(lbl,v,vp,chip="")=>`<div class="card kpi"><div class="label">${lbl}</div><div class="v">${fmt(v)}</div><div class="hint">${chip}${var_(v,vp)||"&nbsp;"}</div></div>`;
+  const linhas=[["a",A],["b",B],["casal","Do casal"]];
+  const FORMAS=[["vista","À vista (salário)"],["cartao","Cartão de crédito"],["vale","Vale"]];
+  const barra=o=>{ const t=R.tot(o); if(!t) return `<div class="rel-bar"></div>`; return `<div class="rel-bar">${FORMAS.map(([f])=>o[f]?`<i class="f-${f}" style="width:${(o[f]/t*100).toFixed(2)}%"></i>`:"").join("")}</div>`; };
+  const chip=k=>k==="casal"?`<span class="who-chip c">Os dois</span>`:`<span class="who-chip ${k}">${esc(nome(k))}</span>`;
+  const split = arr => `<div class="rel-split">${arr.map(([lbl,val,cls])=>`<span><em>${cls?`<i class="sw ${cls}"></i>`:""}${esc(lbl)}</em><b>${val}</b></span>`).join("")}</div>`;
+  const CURTO={vista:"À vista",cartao:"Cartão",vale:"Vale"};
+  const vv = x => x?fmt(x):"—";
+  const bloco = (cab,o) => `<div class="rel-row"><div class="rel-head">${cab}<b>${fmt(R.tot(o))}</b></div>${barra(o)}${split(FORMAS.map(([f])=>[CURTO[f],vv(o[f]),"f-"+f]))}</div>`;
+  const totF = f => linhas.reduce((t,[k])=>t+R.por[k][f],0);
+  const tabela = `<div class="rel-rows">${linhas.map(([k])=>bloco(chip(k),R.por[k])).join("")}
+      <div class="rel-row total"><div class="rel-head"><span>Total do mês</span><b>${fmt(R.total)}</b></div>${split(FORMAS.map(([f])=>[CURTO[f],vv(totF(f)),"f-"+f]))}</div></div>
+    <p class="rel-note">À vista = Pix, débito, dinheiro ou boleto, que sai direto do salário. Cartão = cartão de crédito, que sai do salário quando a fatura vence. Vale = sai do saldo do vale.</p>`;
+  const pagouTab = `<div class="rel-rows">${["a","b"].map(k=>bloco(chip(k),R.pagou[k])).join("")}</div>
+    <p class="rel-note">Inclui o que cada um pagou pelo casal ou pelo outro. A diferença volta no acerto do mês: ${(()=>{ const s=summary(mk); return Math.abs(s.saldoA)<.01?"vocês estão quites.":`${esc(s.saldoA>0?B:A)} deve ${fmt(Math.abs(s.saldoA))} para ${esc(s.saldoA>0?A:B)}.`; })()}</p>`;
+  const cards = S.cartoes.length ? `<section class="card"><h2>Cartões e vales no mês</h2><div class="rel-rows">${S.cartoes.map(c=>`<div class="rel-row"><div class="rel-head"><span><b class="rel-nome">${esc(c.nome)}</b> ${chip(c.dono)}</span><b>${fmt(R.cartoesMes[c.id]||0)}</b></div>
+      ${split(c.tipo==="credito"?[["Usado no mês",fmt(R.cartoesMes[c.id]||0)],["Fatura que vence no mês",fmt(faturaTotal(c,mk))],["Limite livre",+c.limite?fmt(Math.max(0,+c.limite-limiteUsado(c))):"—"]]:[["Usado no mês",fmt(R.cartoesMes[c.id]||0)],["Saldo do vale",fmt(valeSaldo(c,fimDoMes(mk)))],["Recarga mensal",fmt(c.valor)]])}</div>`).join("")}</div>
+    <p class="rel-note">"Usado no mês" é o que foi comprado com cada cartão no mês (compras parceladas contam inteiras no mês da compra). A fatura é o que sai do salário no vencimento.</p></section>` : "";
+  const cats=Object.entries(R.cat).map(([c,o])=>[c,o,o.a+o.b+o.casal]).sort((x,y)=>y[2]-x[2]);
+  const catTab = cats.length ? `<div class="rel-rows">${cats.map(([c,o,t])=>`<div class="rel-row"><div class="rel-head"><button class="cat-link" data-goto-cat="${esc(c)}">${esc(c)}</button><b>${fmt(t)}</b></div>${split([[A,vv(o.a)],[B,vv(o.b)],["Do casal",vv(o.casal)]])}</div>`).join("")}</div>`
+    : `<div class="empty"><b>Sem despesas em ${esc(monthName(mk,{month:"long"}))}</b>Os gastos lançados no mês aparecem aqui.</div>`;
+  const top=[...R.itens].sort((a,b)=>b.v-a.v).slice(0,6);
+  return `<section class="grid g-kpi">
+      ${kpi("Total gasto no mês",R.total,P.total)}
+      ${kpi("Do casal",R.tot(R.por.casal),P.tot(P.por.casal),"")}
+      ${kpi(`Só de ${esc(A)}`,R.tot(R.por.a),P.tot(P.por.a))}
+      ${kpi(`Só de ${esc(B)}`,R.tot(R.por.b),P.tot(P.por.b))}
+    </section>
+    <section class="card"><h2>De quem foi o gasto e como foi pago <span class="sub">${esc(monthName(mk))}</span></h2>${tabela}</section>
+    <section class="card"><h2>Quanto cada um pagou</h2>${pagouTab}</section>
+    ${cards}
+    <section class="card"><h2>Por categoria</h2>${catTab}</section>
+    ${top.length?`<section class="card"><h2>Maiores gastos do mês</h2><div class="tx-list">${top.map(txRow).join("")}</div></section>`:""}`;
 }
 
 let toastT; function toast(msg){ let t=$(".toast"); if(!t){ t=document.createElement("div"); t.className="toast"; t.setAttribute("role","status"); document.body.appendChild(t);} t.textContent=msg; clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2800); }
